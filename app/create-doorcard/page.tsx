@@ -1,0 +1,276 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import BasicInfoForm from "./components/BasicInfoForm"
+import TimeBlockForm from "./components/TimeBlockForm"
+import PreviewDoorcard from "./components/PreviewDoorcard"
+import PrintExportDoorcard from "./components/PrintExportDoorcard"
+import { useDoorcardStore } from "@/store/use-doorcard-store"
+import { useToast } from "@/hooks/use-toast"
+import { useSession } from "next-auth/react"
+import { Save } from "lucide-react"
+import StepIndicator from "./components/StepIndicator"
+
+const steps = [
+  { number: 1, label: "Basic Info" },
+  { number: 2, label: "Time Blocks" },
+  { number: 3, label: "Preview" },
+  { number: 4, label: "Print & Export" },
+]
+
+export default function CreateDoorcardPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+  const { data: session } = useSession()
+  const [isLoading, setIsLoading] = useState(true)
+  const {
+    name,
+    doorcardName,
+    officeNumber,
+    term,
+    year,
+    timeBlocks,
+    currentStep,
+    setCurrentStep,
+    validateCurrentStep,
+    reset,
+    errors,
+    loadDraft,
+    loadDoorcard,
+    saveEntireState,
+    saveAndReturnToDashboard,
+    setStepViewed,
+    draftId,
+  } = useDoorcardStore()
+
+  useEffect(() => {
+    const initializePage = async () => {
+      const doorcardId = searchParams.get("id")
+      const draftId = searchParams.get("draft")
+
+      if (doorcardId) {
+        try {
+          await loadDoorcard(doorcardId)
+          setCurrentStep(0) // Always start at step 1 for editing
+          toast({
+            title: "Success",
+            description: "Doorcard loaded successfully.",
+          })
+        } catch (error) {
+          console.error("Error loading doorcard:", error)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load doorcard. Please try again.",
+          })
+          router.push("/dashboard")
+        }
+      } else if (draftId) {
+        try {
+          await loadDraft(draftId)
+          toast({
+            title: "Draft Loaded",
+            description: "Your draft has been successfully loaded.",
+          })
+        } catch (error) {
+          console.error("Error loading draft:", error)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load draft. Please try again.",
+          })
+        }
+      } else {
+        reset()
+        setCurrentStep(0) // Ensure we start at the first step for new doorcards
+      }
+      setIsLoading(false)
+    }
+
+    initializePage()
+  }, [searchParams, router, loadDoorcard, loadDraft, reset, setCurrentStep, toast])
+
+  useEffect(() => {
+    if (!session) {
+      router.push("/login")
+    }
+  }, [session, router])
+
+  const handleNext = async () => {
+    if (validateCurrentStep()) {
+      try {
+        await saveEntireState()
+        setCurrentStep(Math.min(currentStep + 1, steps.length - 1))
+      } catch (error) {
+        console.error("Error saving draft:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to save draft. Please try again.",
+        })
+      }
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: errors.general?.[0] || "Please fill in all required fields correctly.",
+      })
+    }
+  }
+
+  const handlePrev = () => {
+    setCurrentStep(Math.max(currentStep - 1, 0))
+  }
+
+  const handleSubmit = async () => {
+    if (!validateCurrentStep()) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: errors.general?.[0] || "Please fill in all required fields correctly.",
+      })
+      return
+    }
+
+    try {
+      const endpoint = searchParams.get("id") ? `/api/doorcards/${searchParams.get("id")}` : "/api/doorcards"
+      const method = searchParams.get("id") ? "PUT" : "POST"
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          doorcardName,
+          officeNumber,
+          term,
+          year,
+          timeBlocks,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to ${searchParams.get("id") ? "update" : "create"} doorcard`)
+      }
+
+      if (draftId) {
+        const deleteResponse = await fetch(`/api/doorcards/draft?id=${draftId}`, {
+          method: "DELETE",
+        })
+
+        if (!deleteResponse.ok) {
+          console.error("Failed to delete draft, but doorcard was created")
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: `Doorcard ${searchParams.get("id") ? "updated" : "created"} successfully!`,
+      })
+
+      reset()
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error creating/updating doorcard:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save doorcard. Please try again.",
+      })
+    }
+  }
+
+  const handleSaveAndReturn = async () => {
+    try {
+      await saveAndReturnToDashboard()
+      toast({
+        title: "Draft Saved",
+        description: "Your progress has been saved. Redirecting to dashboard.",
+      })
+      router.replace("/dashboard")
+    } catch (error) {
+      console.error("Error saving draft:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save draft. Please try again.",
+      })
+    }
+  }
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return <BasicInfoForm />
+      case 1:
+        return <TimeBlockForm />
+      case 2:
+        return <PreviewDoorcard data={{ name, doorcardName, officeNumber, term, year, timeBlocks }} />
+      case 3:
+        return <PrintExportDoorcard data={{ name, doorcardName, officeNumber, timeBlocks }} />
+      default:
+        return null
+    }
+  }
+
+  useEffect(() => {
+    setStepViewed(currentStep === 2 ? "preview" : currentStep === 3 ? "print" : null)
+  }, [currentStep, setStepViewed])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return null
+  }
+
+  return (
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="max-w-4xl mx-auto">
+        <CardContent className="pt-6">
+          <h2 className="text-2xl font-bold text-center mb-6">
+            {searchParams.get("id")
+              ? "Edit Doorcard"
+              : searchParams.get("draft")
+                ? "Resume Doorcard"
+                : "Create Doorcard"}
+          </h2>
+
+          <StepIndicator currentStep={currentStep} />
+
+          {renderStep()}
+
+          <div className="mt-8 flex justify-between items-center">
+            <Button onClick={handlePrev} variant="outline" disabled={currentStep === 0}>
+              Previous
+            </Button>
+            <Button onClick={handleSaveAndReturn} variant="secondary" className="flex items-center gap-2">
+              <Save size={16} />
+              Save and Return to Dashboard
+            </Button>
+            <Button onClick={currentStep === steps.length - 1 ? handleSubmit : handleNext} variant="default">
+              {currentStep === steps.length - 1
+                ? searchParams.get("id")
+                  ? "Update Doorcard"
+                  : "Create Doorcard"
+                : "Next"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
