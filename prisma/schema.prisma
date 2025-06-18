@@ -14,34 +14,115 @@ model User {
   id             String          @id @default(cuid())
   name           String?
   email          String          @unique
+  username       String?         @unique // For legacy compatibility if needed
   password       String
+  role           UserRole        @default(FACULTY)
+  college        College?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   doorcards      Doorcard[]
   doorcardDrafts DoorcardDraft[]
+
+  // Indexes for performance
+  @@index([email])
+  @@index([username])
+  @@index([college])
+  @@index([createdAt])
 }
 
 model Doorcard {
-  id           String   @id @default(cuid())
-  name         String
-  doorcardName String
+  id           String    @id @default(cuid())
+  name         String // Faculty name
+  doorcardName String // Display name for doorcard
   officeNumber String
-  term         String
-  year         String
-  timeBlocks   Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  startDate    DateTime? // Term start date
+  endDate      DateTime? // Term end date
+  term         String // e.g., "Spring 2024"
+  year         String // e.g., "2024"
+  college      College?
+  isActive     Boolean   @default(true)
+
+  // Relations
   userId       String
-  user         User     @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes for better query performance
+  @@index([userId])
+  @@index([term, year])
+  @@index([college])
+  @@index([isActive])
+  @@index([createdAt])
+  @@index([officeNumber])
+}
+
+model Appointment {
+  id        String              @id @default(cuid())
+  name      String 
+  startTime String // "08:00" (24-hour format)
+  endTime   String // "09:30" (24-hour format)
+  dayOfWeek DayOfWeek
+  category  AppointmentCategory @default(OFFICE_HOURS)
+  location  String? // Optional room/location
+
+  // Relations
+  doorcardId String
+  doorcard   Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([doorcardId])
+  @@index([dayOfWeek])
+  @@index([category])
+  @@index([startTime])
 }
 
 model DoorcardDraft {
-  id          String   @id @default(cuid())
-  userId      String
-  data        Json
-  lastUpdated DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
+  id                 String   @id @default(cuid())
+  userId             String
+  originalDoorcardId String? // Optional reference to the doorcard being edited
+  data               Json
+  lastUpdated        DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, id])
   @@index([userId])
+  @@index([originalDoorcardId])
+  @@index([lastUpdated]) // For cleanup of old drafts
+}
+
+// Enums based on production data analysis
+enum College {
+  SKYLINE
+  CSM
+  CANADA
+}
+
+enum UserRole {
+  FACULTY
+  ADMIN
+  STAFF
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum AppointmentCategory {
+  OFFICE_HOURS // Office Hours
+  IN_CLASS // In Class
+  LECTURE // Lecture
+  LAB // Lab
+  HOURS_BY_ARRANGEMENT // Hours by Arrangement
+  REFERENCE // Reference
 }

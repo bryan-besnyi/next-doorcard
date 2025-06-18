@@ -1,0 +1,59 @@
+{
+    "users": {
+        "testUser": {
+            "name": "Benjamin Besnyik",
+            "email": "besnyib@smccd.edu",
+            "password": "password123"
+        },
+        "facultyUser": {
+            "name": "Benjamin Besnyik",
+            "email": "besnyib@smccd.edu",
+            "password": "password123"
+        }
+    },
+    "doorcards": {
+        "basicDoorcard": {
+            "name": "Benjamin Besnyik",
+            "doorcardName": "Prof. Besnyik",
+            "officeNumber": "Room 301",
+            "term": "Fall",
+            "year": "2024",
+            "college": "SKYLINE",
+            "appointments": [
+                {
+                    "name": "Office Hours",
+                    "startTime": "10:00",
+                    "endTime": "12:00",
+                    "dayOfWeek": "MONDAY",
+                    "category": "OFFICE_HOURS",
+                    "location": "Room 301"
+                },
+                {
+                    "name": "Computer Science 101",
+                    "startTime": "14:00",
+                    "endTime": "15:30",
+                    "dayOfWeek": "TUESDAY",
+                    "category": "LECTURE",
+                    "location": "Room 101"
+                }
+            ]
+        }
+    },
+    "formInputs": {
+        "validRegistration": {
+            "name": "New Test User",
+            "email": "newuser@example.com",
+            "password": "newpassword123"
+        },
+        "invalidEmail": {
+            "name": "Test User",
+            "email": "invalid-email",
+            "password": "testpassword123"
+        },
+        "shortPassword": {
+            "name": "Test User",
+            "email": "test@example.com",
+            "password": "123"
+        }
+    }
+}

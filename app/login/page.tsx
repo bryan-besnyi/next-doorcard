@@ -1,34 +1,35 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const router = useRouter()
+  const [email, setEmail] = useState("besnyib@smccd.edu");
+  const [password, setPassword] = useState("password123");
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     const result = await signIn("credentials", {
       email,
       password,
       redirect: false,
-    })
+    });
     if (result?.error) {
-      // Handle error
-      console.error(result.error)
+      console.error(result.error);
     } else {
-      router.push("/dashboard")
+      router.push("/dashboard");
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-grow items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+          <h2 className="text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
@@ -78,6 +79,5 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
-  )
+  );
 }
-
