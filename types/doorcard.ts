@@ -64,8 +64,8 @@ export interface DoorcardWithUser extends Doorcard {
 export interface DoorcardDraft {
   id: string;
   userId: string;
-  originalDoorcardId?: string;
-  data: Record<string, unknown>; // JSON data for draft state
+  originalDoorcardId: string | null;
+  data: unknown; // JSON data for draft state
   lastUpdated: Date;
 }
 

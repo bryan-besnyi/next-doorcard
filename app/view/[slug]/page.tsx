@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,8 +81,8 @@ export default function PublicDoorcardView() {
           source: "public_url",
           userAgent: navigator.userAgent,
         });
-      } catch (err) {
-        console.error("Error fetching doorcard:", err);
+      } catch (error) {
+        console.error("Error fetching doorcard:", error);
         setError("Failed to load doorcard");
       } finally {
         setLoading(false);
@@ -111,8 +112,9 @@ export default function PublicDoorcardView() {
           url: url,
         });
         analytics.trackShare(doorcard.id, "native_share");
-      } catch (err) {
+      } catch (error) {
         // User cancelled share
+        console.log("Share cancelled:", error);
       }
     } else {
       // Fallback to clipboard
@@ -120,7 +122,7 @@ export default function PublicDoorcardView() {
         await navigator.clipboard.writeText(url);
         analytics.trackShare(doorcard.id, "clipboard");
         alert("Link copied to clipboard!");
-      } catch (err) {
+      } catch {
         analytics.trackShare(doorcard.id, "manual");
         prompt("Copy this link:", url);
       }
@@ -182,11 +184,11 @@ export default function PublicDoorcardView() {
               {error || "Doorcard Not Found"}
             </h1>
             <p className="text-gray-600 mb-6">
-              The doorcard you're looking for might have been moved, deleted, or
-              made private.
+              The doorcard you&apos;re looking for might have been moved,
+              deleted, or made private.
             </p>
             <Button asChild>
-              <a href="/">Browse Doorcards</a>
+              <Link href="/">Browse Doorcards</Link>
             </Button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PrintExportDoorcard from "../components/PrintExportDoorcard";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,7 @@ interface Doorcard {
   timeBlocks: TimeBlock[];
 }
 
-export default function PrintDoorcardPage() {
+function PrintDoorcardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [doorcard, setDoorcard] = useState<Doorcard | null>(null);
@@ -122,7 +122,7 @@ export default function PrintDoorcardPage() {
       window.removeEventListener("beforeprint", handleBeforePrint);
       window.removeEventListener("afterprint", handleAfterPrint);
     };
-  }, [router]);
+  }, [router, doorcard?.id]);
 
   if (isLoading) {
     return (
@@ -154,5 +154,20 @@ export default function PrintDoorcardPage() {
     <div className="print-container">
       <PrintExportDoorcard data={doorcard} isPrintView={true} />
     </div>
+  );
+}
+
+export default function PrintDoorcardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="sr-only">Loading...</span>
+        </div>
+      }
+    >
+      <PrintDoorcardContent />
+    </Suspense>
   );
 }

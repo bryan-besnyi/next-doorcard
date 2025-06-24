@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(req: Request, context: { params: { slug: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
   try {
-    const { slug } = await context.params;
+    const { slug } = await params;
 
     // Find doorcard by slug or ID (fallback for existing doorcards without slugs)
     const doorcard = await prisma.doorcard.findFirst({
@@ -49,15 +52,17 @@ export async function GET(req: Request, context: { params: { slug: string } }) {
         name: doorcard.user.name,
         college: doorcard.user.college,
       },
-      appointments: doorcard.appointments.map((apt) => ({
-        id: apt.id,
-        name: apt.name,
-        startTime: apt.startTime,
-        endTime: apt.endTime,
-        dayOfWeek: apt.dayOfWeek,
-        category: apt.category,
-        location: apt.location,
-      })),
+      appointments: doorcard.appointments.map(
+        (apt: (typeof doorcard.appointments)[0]) => ({
+          id: apt.id,
+          name: apt.name,
+          startTime: apt.startTime,
+          endTime: apt.endTime,
+          dayOfWeek: apt.dayOfWeek,
+          category: apt.category,
+          location: apt.location,
+        })
+      ),
       createdAt: doorcard.createdAt.toISOString(),
       updatedAt: doorcard.updatedAt.toISOString(),
     };

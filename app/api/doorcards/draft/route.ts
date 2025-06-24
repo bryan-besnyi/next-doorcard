@@ -1,10 +1,31 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+
+interface DraftData {
+  draftId?: string;
+  originalDoorcardId?: string;
+  term?: string;
+  year?: string;
+  name?: string;
+  doorcardName?: string;
+  officeNumber?: string;
+  college?: string;
+  timeBlocks?: Array<{
+    activity?: string;
+    startTime: string;
+    endTime: string;
+    day: string;
+    category?: string;
+    location?: string;
+  }>;
+  [key: string]: unknown;
+}
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,7 +61,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const data = await req.json();
+    const data = (await req.json()) as DraftData;
     const draftId = data.draftId;
 
     if (draftId) {
@@ -66,7 +87,7 @@ export async function POST(req: Request) {
           userId: user.id,
         },
         data: {
-          data: data as any, // JSON data
+          data: JSON.parse(JSON.stringify(data)),
           lastUpdated: new Date(),
         },
       });
@@ -89,7 +110,7 @@ export async function POST(req: Request) {
 
         // If draft exists, check if it's for the same year
         if (existingDraft) {
-          const existingDraftData = existingDraft.data as any;
+          const existingDraftData = existingDraft.data as DraftData;
           if (existingDraftData.year === year) {
             // Return error - only one draft per term allowed
             return NextResponse.json(
@@ -109,7 +130,7 @@ export async function POST(req: Request) {
         data: {
           userId: user.id,
           originalDoorcardId: data.originalDoorcardId || null,
-          data: data as any, // JSON data
+          data: JSON.parse(JSON.stringify(data)),
         },
       });
       return NextResponse.json(draft);
@@ -125,7 +146,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

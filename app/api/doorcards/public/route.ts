@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { College } from "@/types/doorcard";
 
+interface WhereClause {
+  isPublic: boolean;
+  isActive: boolean;
+  college?: College;
+  term?: string;
+  year?: string;
+  OR?: Array<{
+    name?: { contains: string; mode: "insensitive" };
+    doorcardName?: { contains: string; mode: "insensitive" };
+    user?: { name: { contains: string; mode: "insensitive" } };
+  }>;
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -11,7 +24,7 @@ export async function GET(req: Request) {
     const year = searchParams.get("year");
 
     // Build where clause for filtering
-    const whereClause: any = {
+    const whereClause: WhereClause = {
       isPublic: true,
       isActive: true,
     };
@@ -53,23 +66,25 @@ export async function GET(req: Request) {
     });
 
     // Format the response
-    const formattedDoorcards = doorcards.map((doorcard) => ({
-      id: doorcard.id,
-      name: doorcard.name,
-      doorcardName: doorcard.doorcardName,
-      officeNumber: doorcard.officeNumber,
-      term: doorcard.term,
-      year: doorcard.year,
-      college: doorcard.college,
-      slug: doorcard.slug,
-      user: {
-        name: doorcard.user.name,
-        college: doorcard.user.college,
-      },
-      appointmentCount: doorcard.appointments.length,
-      createdAt: doorcard.createdAt.toISOString(),
-      updatedAt: doorcard.updatedAt.toISOString(),
-    }));
+    const formattedDoorcards = doorcards.map(
+      (doorcard: (typeof doorcards)[0]) => ({
+        id: doorcard.id,
+        name: doorcard.name,
+        doorcardName: doorcard.doorcardName,
+        officeNumber: doorcard.officeNumber,
+        term: doorcard.term,
+        year: doorcard.year,
+        college: doorcard.college,
+        slug: doorcard.slug,
+        user: {
+          name: doorcard.user.name,
+          college: doorcard.user.college,
+        },
+        appointmentCount: doorcard.appointments.length,
+        createdAt: doorcard.createdAt.toISOString(),
+        updatedAt: doorcard.updatedAt.toISOString(),
+      })
+    );
 
     return NextResponse.json({
       doorcards: formattedDoorcards,

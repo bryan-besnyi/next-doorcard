@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,23 +35,24 @@ export async function GET() {
 
     // Calculate real engagement metrics
     const totalDoorcards = doorcards.length;
-    const activeDoors = doorcards.filter((d) => d.isActive).length;
+    const activeDoors = doorcards.filter(
+      (doorcard: (typeof doorcards)[0]) => doorcard.isActive
+    ).length;
 
     // Sum up all views and prints from metrics
     const totalViews = doorcards.reduce(
-      (sum, card) => sum + (card.metrics?.totalViews || 0),
+      (sum: number, card: (typeof doorcards)[0]) =>
+        sum + (card.metrics?.totalViews || 0),
       0
     );
     const uniqueViews = doorcards.reduce(
-      (sum, card) => sum + (card.metrics?.uniqueViews || 0),
-      0
-    );
-    const totalPrints = doorcards.reduce(
-      (sum, card) => sum + (card.metrics?.totalPrints || 0),
+      (sum: number, card: (typeof doorcards)[0]) =>
+        sum + (card.metrics?.uniqueViews || 0),
       0
     );
     const totalShares = doorcards.reduce(
-      (sum, card) => sum + (card.metrics?.totalShares || 0),
+      (sum: number, card: (typeof doorcards)[0]) =>
+        sum + (card.metrics?.totalShares || 0),
       0
     );
 
@@ -96,7 +98,8 @@ export async function GET() {
 
       // 4. Recent maintenance (15 points)
       const recentlyUpdated = doorcards.filter(
-        (d) => new Date(d.updatedAt) > thirtyDaysAgo
+        (doorcard: (typeof doorcards)[0]) =>
+          new Date(doorcard.updatedAt) > thirtyDaysAgo
       ).length;
       const maintenanceScore = (recentlyUpdated / totalDoorcards) * 15;
       engagementScore += maintenanceScore;

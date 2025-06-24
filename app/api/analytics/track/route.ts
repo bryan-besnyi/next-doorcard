@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         userAgent,
         referrer,
         sessionId,
-        metadata,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
       },
     });
 

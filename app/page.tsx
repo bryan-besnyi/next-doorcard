@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 // Custom hook for debounced values
@@ -23,7 +22,7 @@ function useDebounce<T>(value: T, delay: number): T {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { COLLEGES, type College } from "@/types/doorcard";
 import { Search, Clock, MapPin, Calendar } from "lucide-react";
 

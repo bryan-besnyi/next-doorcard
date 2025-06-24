@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,43 +11,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Plus,
   FileText,
-  Clock,
-  BarChart3,
-  Settings,
   User,
   LogOut,
-  Search,
-  Filter,
-  Grid3X3,
-  List,
-  Download,
   Printer,
   Edit,
   Trash2,
-  AlertCircle,
   CheckCircle,
   Calendar,
   Archive,
   Eye,
   ExternalLink,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ResumeDoorcard from "./components/ResumeDoorcard";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
-import { DashboardErrorState } from "@/components/ui/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { COLLEGES } from "@/types/doorcard";
 
@@ -109,11 +91,6 @@ interface LoadingState {
   drafts: boolean;
 }
 
-interface ErrorState {
-  doorcards: boolean;
-  drafts: boolean;
-}
-
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -123,19 +100,22 @@ export default function DashboardPage() {
     doorcards: true,
     drafts: true,
   });
-  const [errors, setErrors] = useState<ErrorState>({
-    doorcards: false,
-    drafts: false,
-  });
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTerm, setFilterTerm] = useState("all");
-  const [sortBy, setSortBy] = useState("updated");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [sortBy] = useState("updated");
   const [deletingDrafts, setDeletingDrafts] = useState<Set<string>>(new Set());
   const [deletingAllDrafts, setDeletingAllDrafts] = useState(false);
-  const [realMetrics, setRealMetrics] = useState<any>(null);
-  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [realMetrics, setRealMetrics] = useState<{
+    totalDoorcards: number;
+    activeDoors: number;
+    totalDrafts: number;
+    totalViews: number;
+    uniqueViews: number;
+    avgViewsPerCard: number;
+    recentPrints: number;
+    totalShares: number;
+    engagementScore: number;
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -144,9 +124,8 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  const fetchDrafts = async () => {
+  const fetchDrafts = useCallback(async () => {
     setLoading((prev) => ({ ...prev, drafts: true }));
-    setErrors((prev) => ({ ...prev, drafts: false }));
 
     try {
       const response = await fetch("/api/doorcards/draft");
@@ -170,15 +149,13 @@ export default function DashboardPage() {
       );
     } catch (error) {
       console.error("Error fetching drafts:", error);
-      setErrors((prev) => ({ ...prev, drafts: true }));
     } finally {
       setLoading((prev) => ({ ...prev, drafts: false }));
     }
-  };
+  }, []);
 
-  const fetchDoorcards = async () => {
+  const fetchDoorcards = useCallback(async () => {
     setLoading((prev) => ({ ...prev, doorcards: true }));
-    setErrors((prev) => ({ ...prev, doorcards: false }));
 
     try {
       const response = await fetch("/api/doorcards");
@@ -189,7 +166,6 @@ export default function DashboardPage() {
       setDoorcards(data);
     } catch (error) {
       console.error("Error fetching doorcards:", error);
-      setErrors((prev) => ({ ...prev, doorcards: true }));
       toast({
         variant: "destructive",
         title: "Error",
@@ -198,10 +174,9 @@ export default function DashboardPage() {
     } finally {
       setLoading((prev) => ({ ...prev, doorcards: false }));
     }
-  };
+  }, [toast]);
 
-  const fetchRealMetrics = async () => {
-    setMetricsLoading(true);
+  const fetchRealMetrics = useCallback(async () => {
     try {
       const response = await fetch("/api/analytics/metrics");
       if (response.ok) {
@@ -213,34 +188,18 @@ export default function DashboardPage() {
           "Failed to fetch real metrics, using simulated data. Status:",
           response.status
         );
-        // Set real metrics to zeros when API fails instead of using simulation
-        setRealMetrics({
-          totalViews: 0,
-          avgViewsPerCard: 0,
-          recentPrints: 0,
-          engagementScore: 0,
-        });
       }
     } catch (error) {
-      console.warn("Error fetching real metrics:", error);
-      // Set real metrics to zeros when API fails instead of using simulation
-      setRealMetrics({
-        totalViews: 0,
-        avgViewsPerCard: 0,
-        recentPrints: 0,
-        engagementScore: 0,
-      });
-    } finally {
-      setMetricsLoading(false);
+      console.error("Error fetching real metrics:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     fetchDrafts();
     fetchDoorcards();
     fetchRealMetrics();
-  }, [status]);
+  }, [status, fetchDrafts, fetchDoorcards, fetchRealMetrics]);
 
   // Calculate engagement analytics based on real usage patterns
   const calculateEngagementMetrics = () => {
@@ -304,36 +263,6 @@ export default function DashboardPage() {
       avgViewsPerCard,
       recentPrints,
       engagementScore: Math.round(engagementScore),
-    };
-  };
-
-  const getEngagementLevel = (score: number) => {
-    if (score >= 80)
-      return {
-        level: "High Engagement",
-        color: "text-green-600",
-        bgColor: "bg-green-50",
-        description: "Excellent viewer activity",
-      };
-    if (score >= 60)
-      return {
-        level: "Good Engagement",
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
-        description: "Healthy usage patterns",
-      };
-    if (score >= 40)
-      return {
-        level: "Moderate",
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-50",
-        description: "Room for improvement",
-      };
-    return {
-      level: "Low Engagement",
-      color: "text-red-600",
-      bgColor: "bg-red-50",
-      description: "Needs attention",
     };
   };
 
@@ -452,32 +381,6 @@ export default function DashboardPage() {
 
   const handlePrint = (doorcard: Doorcard) => {
     router.push(`/create-doorcard/print?id=${doorcard.id}&print=true`);
-  };
-
-  const handleBulkAction = (action: string) => {
-    if (selectedCards.size === 0) {
-      toast({
-        variant: "destructive",
-        title: "No Selection",
-        description: "Please select doorcards to perform bulk actions.",
-      });
-      return;
-    }
-
-    switch (action) {
-      case "delete":
-        // Implement bulk delete
-        console.log("Bulk delete:", Array.from(selectedCards));
-        break;
-      case "export":
-        // Implement bulk export
-        console.log("Bulk export:", Array.from(selectedCards));
-        break;
-      case "print":
-        // Implement bulk print
-        console.log("Bulk print:", Array.from(selectedCards));
-        break;
-    }
   };
 
   // Show loading skeleton while session is loading

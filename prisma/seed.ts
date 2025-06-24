@@ -471,7 +471,9 @@ async function main() {
       });
 
       // Generate courses for this faculty member
-      const courses = courseTemplates[userData.dept] || ["General Course"];
+      const courses = courseTemplates[
+        userData.dept as keyof typeof courseTemplates
+      ] || ["General Course"];
       const numCourses = Math.floor(Math.random() * 3) + 1; // 1-3 courses
       const selectedCourses = courses.slice(0, numCourses);
 

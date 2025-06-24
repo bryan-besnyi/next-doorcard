@@ -60,7 +60,6 @@ export default function PrintExportDoorcard({
   data,
   isPrintView = false,
 }: PrintExportDoorcardProps) {
-  const [viewType, setViewType] = useState<"grid" | "list">("grid");
   const [htmlContent, setHtmlContent] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();

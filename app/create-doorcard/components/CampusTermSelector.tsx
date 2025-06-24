@@ -9,7 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDoorcardStore } from "@/store/use-doorcard-store";
-import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COLLEGES } from "@/types/doorcard";
@@ -101,18 +100,13 @@ const CampusTermSelector = () => {
   };
 
   const isComplete = college && term && year;
-  const canProceed =
-    isComplete &&
-    !validationState.isChecking &&
-    !validationState.result?.isDuplicate &&
-    !validationState.result?.isError;
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader className="text-center">
         <CardTitle>Select Campus and Term</CardTitle>
         <CardDescription>
-          Choose the campus and term for your new doorcard. We'll check for
+          Choose the campus and term for your new doorcard. We&apos;ll check for
           existing doorcards to avoid duplicates.
         </CardDescription>
       </CardHeader>

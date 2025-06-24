@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
-export async function GET(req: Request, context: { params: { id: string } }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,9 +23,10 @@ export async function GET(req: Request, context: { params: { id: string } }) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     const doorcard = await prisma.doorcard.findFirst({
       where: {
-        id: (await context.params).id,
+        id,
         userId: user.id,
       },
     });
@@ -43,9 +48,12 @@ export async function GET(req: Request, context: { params: { id: string } }) {
   }
 }
 
-export async function PUT(req: Request, context: { params: { id: string } }) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -61,11 +69,12 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
     }
 
     const json = await req.json();
+    const { id } = await params;
 
     // Validate the doorcard exists and belongs to the user
     const existingDoorcard = await prisma.doorcard.findFirst({
       where: {
-        id: (await context.params).id,
+        id,
         userId: user.id,
       },
     });
@@ -78,7 +87,7 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData = {
       name: json.name,
       doorcardName: json.doorcardName,
       officeNumber: json.officeNumber,
@@ -89,23 +98,30 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
 
     // Handle timeBlocks -> appointments conversion if provided
     if (json.timeBlocks && Array.isArray(json.timeBlocks)) {
-      const doorcardId = (await context.params).id;
-
       // First delete existing appointments
       await prisma.appointment.deleteMany({
-        where: { doorcardId },
+        where: { doorcardId: id },
       });
 
       // Convert timeBlocks to appointments format
-      const appointments = json.timeBlocks.map((block: any) => ({
-        name: block.activity || "Office Hours",
-        startTime: block.startTime,
-        endTime: block.endTime,
-        dayOfWeek: block.day,
-        category: block.category || "OFFICE_HOURS",
-        location: block.location || null,
-        doorcardId,
-      }));
+      const appointments = json.timeBlocks.map(
+        (block: {
+          activity?: string;
+          startTime: string;
+          endTime: string;
+          day: string;
+          category?: string;
+          location?: string;
+        }) => ({
+          name: block.activity || "Office Hours",
+          startTime: block.startTime,
+          endTime: block.endTime,
+          dayOfWeek: block.day,
+          category: block.category || "OFFICE_HOURS",
+          location: block.location || null,
+          doorcardId: id,
+        })
+      );
 
       // Create new appointments
       if (appointments.length > 0) {
@@ -118,7 +134,7 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
     // Update doorcard
     const doorcard = await prisma.doorcard.update({
       where: {
-        id: (await context.params).id,
+        id,
         userId: user.id,
       },
       data: updateData,
@@ -136,10 +152,10 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
 
 export async function DELETE(
   req: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -154,9 +170,10 @@ export async function DELETE(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const { id } = await params;
     await prisma.doorcard.delete({
       where: {
-        id: (await context.params).id,
+        id,
         userId: user.id,
       },
     });

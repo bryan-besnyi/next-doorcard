@@ -39,6 +39,7 @@ interface DraftData {
   currentStep?: number;
   hasViewedPreview?: boolean;
   hasViewedPrint?: boolean;
+  originalDoorcardId?: string;
   errors?: {
     basicInfo?: Record<string, string>;
     timeBlocks?: string[];
@@ -86,12 +87,12 @@ export const draftService = {
         },
       },
       update: {
-        data: draftData,
+        data: JSON.parse(JSON.stringify(draftData)),
         originalDoorcardId,
       },
       create: {
         userId,
-        data: draftData,
+        data: JSON.parse(JSON.stringify(draftData)),
         originalDoorcardId,
       },
     });

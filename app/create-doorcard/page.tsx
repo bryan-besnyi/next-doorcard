@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +25,7 @@ const steps = [
   { number: 5, label: "Print & Export" },
 ];
 
-export default function CreateDoorcardPage() {
+function CreateDoorcardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -209,7 +209,7 @@ export default function CreateDoorcardPage() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (jsonError) {
+        } catch {
           // Response doesn't contain valid JSON, use status text or default message
           errorMessage = response.statusText || errorMessage;
         }
@@ -377,5 +377,19 @@ export default function CreateDoorcardPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function CreateDoorcardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
+      <CreateDoorcardContent />
+    </Suspense>
   );
 }
