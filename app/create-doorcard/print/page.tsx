@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PrintExportDoorcard from "../components/PrintExportDoorcard";
 import { useToast } from "@/hooks/use-toast";
+import { analytics } from "@/lib/analytics";
 import { Loader2 } from "lucide-react";
 
 interface TimeBlock {
@@ -67,6 +68,11 @@ export default function PrintDoorcardPage() {
 
         setDoorcard(doorcardData);
         setIsLoading(false);
+
+        // Track print preview
+        if (doorcardData.id) {
+          analytics.trackPrint(doorcardData.id, "preview");
+        }
       } catch (error) {
         console.error("Error fetching doorcard:", error);
         setError("Failed to load doorcard for printing");
@@ -100,6 +106,12 @@ export default function PrintDoorcardPage() {
 
     const handleAfterPrint = () => {
       console.log("After print event triggered");
+
+      // Track successful print/download
+      if (doorcard?.id) {
+        analytics.trackPrint(doorcard.id, "download");
+      }
+
       router.push("/dashboard");
     };
 

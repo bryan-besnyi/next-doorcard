@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import type { Session } from "next-auth";
 import type { DoorcardDraft, TimeBlock } from "@/types/doorcard";
 
@@ -11,7 +10,7 @@ export async function withAuth<T>(
   handler: AuthenticatedHandler<T>
 ): Promise<NextResponse> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,7 +30,6 @@ export async function withAuth<T>(
 }
 
 interface DraftData {
-  originalDoorcardId?: string | null;
   name?: string;
   doorcardName?: string;
   officeNumber?: string;
@@ -41,8 +39,11 @@ interface DraftData {
   currentStep?: number;
   hasViewedPreview?: boolean;
   hasViewedPrint?: boolean;
-  basicInfo?: Record<string, string>;
-  general?: string[];
+  errors?: {
+    basicInfo?: Record<string, string>;
+    timeBlocks?: string[];
+    general?: string[];
+  };
 }
 
 export const draftService = {

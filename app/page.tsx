@@ -1,44 +1,233 @@
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+
+// Custom hook for debounced values
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { COLLEGES, type College } from "@/types/doorcard";
+import { Search, Clock, MapPin, Calendar } from "lucide-react";
+
+interface PublicDoorcard {
+  id: string;
+  name: string;
+  doorcardName: string;
+  officeNumber: string;
+  term: string;
+  year: string;
+  college?: College;
+  slug?: string;
+  user: {
+    name: string;
+    college?: College;
+  };
+  appointmentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DoorcardResponse {
+  doorcards: PublicDoorcard[];
+  count: number;
+}
 
 export default function Home() {
+  const router = useRouter();
+  const [doorcards, setDoorcards] = useState<PublicDoorcard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCampus, setSelectedCampus] = useState<College | "ALL">("ALL");
+
+  // Debounce search term to avoid excessive filtering
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  useEffect(() => {
+    fetchDoorcards();
+  }, []);
+
+  const fetchDoorcards = async () => {
+    try {
+      const response = await fetch("/api/doorcards/public");
+      const data: DoorcardResponse = await response.json();
+      setDoorcards(data.doorcards);
+    } catch (error) {
+      console.error("Error fetching doorcards:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Memoized filtered doorcards using debounced search
+  const filteredDoorcards = useMemo(() => {
+    let filtered = doorcards;
+
+    // Filter by campus
+    if (selectedCampus !== "ALL") {
+      filtered = filtered.filter((dc) => dc.college === selectedCampus);
+    }
+
+    // Filter by search term (using debounced value)
+    if (debouncedSearchTerm) {
+      const term = debouncedSearchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (dc) =>
+          dc.name.toLowerCase().includes(term) ||
+          dc.doorcardName.toLowerCase().includes(term) ||
+          dc.user.name?.toLowerCase().includes(term)
+      );
+    }
+
+    return filtered;
+  }, [doorcards, selectedCampus, debouncedSearchTerm]);
+
+  const handleDoorcardClick = (doorcard: PublicDoorcard) => {
+    const slug = doorcard.slug || doorcard.id;
+    router.push(`/view/${slug}`);
+  };
+
   return (
-    <div className="flex flex-grow flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Faculty Doorcard App
-        </h1>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Create and manage your office hours and class schedules
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Faculty Door Cards</h1>
+        <p className="text-gray-600 mt-1">
+          San Mateo County Community College District
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">
-              Welcome
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button asChild className="w-full">
-              <Link href="/login">Login</Link>
-            </Button>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/register">Register</Link>
-            </Button>
-            <div className="text-center text-sm">
-              <Link
-                href="/dashboard"
-                className="font-medium text-indigo-600 hover:text-indigo-500"
-              >
-                Go to Dashboard
-              </Link>
+      {/* Search and Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Find Faculty Door Cards
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by faculty name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="md:w-48">
+              <Tabs
+                value={selectedCampus}
+                onValueChange={(value) =>
+                  setSelectedCampus(value as College | "ALL")
+                }
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="ALL">All</TabsTrigger>
+                  <TabsTrigger value="SKYLINE">SKY</TabsTrigger>
+                  <TabsTrigger value="CSM">CSM</TabsTrigger>
+                  <TabsTrigger value="CANADA">CAN</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Directory */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Faculty Directory</span>
+            <Badge variant="secondary">
+              {filteredDoorcards.length} results
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Loading door cards...</p>
+            </div>
+          ) : filteredDoorcards.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600">
+                No door cards found matching your criteria.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredDoorcards.map((doorcard) => (
+                <Card
+                  key={doorcard.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleDoorcardClick(doorcard)}
+                >
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="font-semibold text-lg text-gray-900">
+                          {doorcard.name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {doorcard.doorcardName}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4" />
+                          <span>{doorcard.officeNumber}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {doorcard.term} {doorcard.year}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Clock className="h-4 w-4" />
+                          <span>{doorcard.appointmentCount} time blocks</span>
+                        </div>
+                        {doorcard.college && (
+                          <Badge variant="outline">
+                            {
+                              COLLEGES.find(
+                                (c) => c.value === doorcard.college
+                              )?.label.split(" ")[0]
+                            }
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

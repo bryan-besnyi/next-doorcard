@@ -1,11 +1,16 @@
 const steps = [
-  { number: 1, label: "Basic Info", path: "/create-doorcard/basic-info" },
-  { number: 2, label: "Time Blocks", path: "/create-doorcard/time-blocks" },
-  { number: 3, label: "Preview", path: "/create-doorcard/preview" },
-  { number: 4, label: "Print & Export", path: "/create-doorcard/print" },
-]
+  { number: 1, label: "Campus & Term", path: "/create-doorcard/campus-term" },
+  { number: 2, label: "Basic Info", path: "/create-doorcard/basic-info" },
+  { number: 3, label: "Time Blocks", path: "/create-doorcard/time-blocks" },
+  { number: 4, label: "Preview", path: "/create-doorcard/preview" },
+  { number: 5, label: "Print & Export", path: "/create-doorcard/print" },
+];
 
-export default function StepIndicator({ currentStep }: { currentStep: number }) {
+export default function StepIndicator({
+  currentStep,
+}: {
+  currentStep: number;
+}) {
   return (
     <div className="mb-8 relative">
       <div className="flex justify-between items-center">
@@ -15,12 +20,18 @@ export default function StepIndicator({ currentStep }: { currentStep: number }) 
               <div
                 className={`w-8 h-8 mx-auto rounded-full border-2 flex items-center justify-center
                   ${
-                    index <= currentStep ? "border-black bg-black text-white" : "border-gray-300 bg-white text-gray-300"
+                    index <= currentStep
+                      ? "border-black bg-black text-white"
+                      : "border-gray-300 bg-white text-gray-300"
                   }`}
               >
                 {step.number}
               </div>
-              <div className={`mt-2 text-sm ${index <= currentStep ? "text-black" : "text-gray-300"}`}>
+              <div
+                className={`mt-2 text-sm ${
+                  index <= currentStep ? "text-black" : "text-gray-300"
+                }`}
+              >
                 {step.label}
               </div>
               {index < steps.length - 1 && (
@@ -34,6 +45,5 @@ export default function StepIndicator({ currentStep }: { currentStep: number }) 
         ))}
       </div>
     </div>
-  )
+  );
 }
-

@@ -130,6 +130,11 @@ export default function PreviewDoorcard() {
                           )}
                         </div>
                         <div>{activeBlock.activity}</div>
+                        {activeBlock.location && (
+                          <div className="text-xs text-gray-600">
+                            {activeBlock.location}
+                          </div>
+                        )}
                       </td>
                     );
                   }

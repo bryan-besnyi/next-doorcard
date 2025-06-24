@@ -7,22 +7,45 @@ export const basicInfoSchema = z.object({
   officeNumber: z.string().min(1, "Office number is required"),
   term: z.string().min(1, "Term is required"),
   year: z.string().min(1, "Year is required"),
+  college: z.enum(["SKYLINE", "CSM", "CANADA"], {
+    required_error: "Campus is required",
+  }),
 });
 
 export const timeBlockSchema = z.object({
   id: z.string(),
-  day: z.enum(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], {
-    required_error: "Day is required",
-  }),
+  day: z.enum(
+    [
+      "MONDAY",
+      "TUESDAY",
+      "WEDNESDAY",
+      "THURSDAY",
+      "FRIDAY",
+      "SATURDAY",
+      "SUNDAY",
+    ],
+    {
+      required_error: "Day is required",
+    }
+  ),
   startTime: z
     .string()
     .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   endTime: z
     .string()
     .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
-  activity: z.enum(["Class", "Office Hours", "Lab Hours", "Lab Time", "TBA"], {
-    required_error: "Activity is required",
-  }),
+  activity: z.string().min(1, "Activity is required"),
+  location: z.string().optional(),
+  category: z
+    .enum([
+      "OFFICE_HOURS",
+      "IN_CLASS",
+      "LECTURE",
+      "LAB",
+      "HOURS_BY_ARRANGEMENT",
+      "REFERENCE",
+    ])
+    .optional(),
 });
 
 export const doorcardSchema = z.object({
@@ -50,6 +73,7 @@ interface DoorcardState {
   officeNumber: string;
   term: string;
   year: string;
+  college: string;
   timeBlocks: TimeBlock[];
   currentStep: number;
   errors: {
@@ -84,7 +108,12 @@ interface DoorcardState {
   addTimeBlock: (timeBlock: TimeBlock) => void;
   removeTimeBlock: (id: string) => void;
   setCurrentStep: (step: number) => void;
-  validateCurrentStep: () => boolean;
+  validateCurrentStep: () => Promise<boolean>;
+  validateDuplicateDoorcards: () => Promise<{
+    isDuplicate: boolean;
+    message: string;
+    existingDoorcardId?: string;
+  }>;
   reset: () => void;
   loadDraft: (draftId: string) => Promise<void>;
   calculateProgress: () => number;
@@ -107,6 +136,7 @@ const initialState = {
   officeNumber: "",
   term: "",
   year: "",
+  college: "",
   timeBlocks: [],
   currentStep: 0,
   errors: {},
@@ -255,31 +285,97 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
 
   setCurrentStep: (step) => set({ currentStep: step }),
 
-  validateCurrentStep: () => {
+  validateDuplicateDoorcards: async () => {
+    const state = get();
+
+    if (!state.college || !state.term || !state.year) {
+      return { isDuplicate: false, message: "Validation data incomplete" };
+    }
+
+    try {
+      const requestData: {
+        college: string;
+        term: string;
+        year: string;
+        excludeDoorcardId?: string;
+      } = {
+        college: state.college,
+        term: state.term,
+        year: state.year,
+      };
+
+      // Only include excludeDoorcardId if we're actually editing a doorcard
+      if (state.originalDoorcardId) {
+        requestData.excludeDoorcardId = state.originalDoorcardId;
+      }
+
+      console.log("Validating doorcard with data:", requestData);
+
+      const response = await fetch("/api/doorcards/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Validation API error:", response.status, errorText);
+        throw new Error(
+          `Failed to validate doorcard: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      return {
+        isDuplicate: data.isDuplicate,
+        message: data.message,
+        existingDoorcardId: data.existingDoorcardId,
+      };
+    } catch (error) {
+      console.error("Error validating duplicate doorcards:", error);
+      return { isDuplicate: false, message: "Validation failed" };
+    }
+  },
+
+  validateCurrentStep: async () => {
     const state = get();
     try {
       switch (state.currentStep) {
-        case 0:
-          basicInfoSchema.parse({
-            name: state.name,
-            doorcardName: state.doorcardName,
-            officeNumber: state.officeNumber,
-            term: state.term,
-            year: state.year,
-          });
+        case 0: // Campus & Term Selection
+          if (!state.college || !state.term || !state.year) {
+            throw new Error("Please select campus, term, and year to proceed.");
+          }
+
+          // Check for duplicates (only for new doorcards)
+          if (state.mode === "create") {
+            const duplicateCheck = await state.validateDuplicateDoorcards();
+            if (duplicateCheck.isDuplicate) {
+              throw new Error(duplicateCheck.message);
+            }
+          }
+
           return true;
-        case 1:
+        case 1: // Basic Info
+          // Only validate the personal info fields (campus/term already validated)
+          if (!state.name || !state.doorcardName || !state.officeNumber) {
+            throw new Error("Please fill in all required fields.");
+          }
+          return true;
+        case 2: // Time Blocks
           if (state.timeBlocks.length === 0) {
             throw new Error("At least one time block is required");
           }
           return true;
-        case 2:
+        case 3: // Preview
           doorcardSchema.parse({
             name: state.name,
             doorcardName: state.doorcardName,
             officeNumber: state.officeNumber,
             term: state.term,
             year: state.year,
+            college: state.college,
             timeBlocks: state.timeBlocks,
           });
           return true;
@@ -419,6 +515,7 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
           officeNumber: state.officeNumber,
           term: state.term,
           year: state.year,
+          college: state.college,
           timeBlocks: state.timeBlocks,
           currentStep: state.currentStep,
         }),
@@ -512,6 +609,7 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
           officeNumber: state.officeNumber,
           term: state.term,
           year: state.year,
+          college: state.college,
           timeBlocks: state.timeBlocks,
           currentStep: state.currentStep,
           hasViewedPreview: state.hasViewedPreview,
@@ -566,6 +664,7 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
             : "",
         term: typeof doorcard.term === "string" ? doorcard.term : "",
         year: typeof doorcard.year === "string" ? doorcard.year : "",
+        college: typeof doorcard.college === "string" ? doorcard.college : "",
         timeBlocks: Array.isArray(doorcard.timeBlocks)
           ? doorcard.timeBlocks
           : [],

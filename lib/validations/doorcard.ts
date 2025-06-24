@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DayOfWeek } from "@/types/doorcard";
 
 // Enum validation schemas
 export const collegeSchema = z.enum(["SKYLINE", "CSM", "CANADA"]);
@@ -68,7 +69,7 @@ export const basicInfoSchema = z
     officeNumber: z.string().min(1, "Office number is required").max(20),
     term: z.string().min(1, "Term is required").max(50),
     year: z.string().min(4, "Year must be at least 4 characters").max(4),
-    college: collegeSchema.optional(),
+    college: collegeSchema,
     startDate: z.date().optional(),
     endDate: z.date().optional(),
   })
@@ -93,7 +94,7 @@ export const doorcardSchema = z.object({
   officeNumber: z.string().min(1, "Office number is required").max(20),
   term: z.string().min(1, "Term is required").max(50),
   year: z.string().min(4, "Year must be at least 4 characters").max(4),
-  college: collegeSchema.optional(),
+  college: collegeSchema,
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   appointments: z.array(baseAppointmentSchema).default([]),
@@ -201,10 +202,10 @@ export function validateAppointmentOverlap(
 }
 
 export function validateTimeBlockOverlap(
-  newBlock: { day: string; startTime: string; endTime: string },
+  newBlock: { day: string | DayOfWeek; startTime: string; endTime: string },
   existingBlocks: Array<{
     id: string;
-    day: string;
+    day: string | DayOfWeek;
     startTime: string;
     endTime: string;
     activity: string;

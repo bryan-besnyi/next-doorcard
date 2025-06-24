@@ -41,27 +41,35 @@ model Doorcard {
   year         String // e.g., "2024"
   college      College?
   isActive     Boolean   @default(true)
+  isPublic     Boolean   @default(true) // Public viewing enabled
+  slug         String?   @unique // SEO-friendly URL slug
 
   // Relations
   userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  analytics    DoorcardAnalytics[]
+  metrics      DoorcardMetrics?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Note: We handle unique active doorcard validation in application code rather than DB constraint
+  // because PostgreSQL unique constraints don't work well with conditional uniqueness (isActive = true)
   // Indexes for better query performance
   @@index([userId])
   @@index([term, year])
   @@index([college])
   @@index([isActive])
+  @@index([isPublic])
+  @@index([slug])
   @@index([createdAt])
   @@index([officeNumber])
 }
 
 model Appointment {
   id        String              @id @default(cuid())
-  name      String 
+  name      String
   startTime String // "08:00" (24-hour format)
   endTime   String // "09:30" (24-hour format)
   dayOfWeek DayOfWeek
@@ -95,6 +103,49 @@ model DoorcardDraft {
   @@index([lastUpdated]) // For cleanup of old drafts
 }
 
+// Analytics tracking for real engagement metrics
+model DoorcardAnalytics {
+  id         String         @id @default(cuid())
+  doorcardId String
+  eventType  AnalyticsEvent
+  ipAddress  String? // Optional for privacy
+  userAgent  String? // Browser/device info
+  referrer   String? // How they found the doorcard
+  sessionId  String? // Track unique sessions
+  metadata   Json? // Additional event data
+
+  doorcard Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // Indexes for fast analytics queries
+  @@index([doorcardId, eventType])
+  @@index([doorcardId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([sessionId])
+  @@index([createdAt]) // For time-based analytics
+}
+
+// Aggregated metrics for fast dashboard queries
+model DoorcardMetrics {
+  id            String    @id @default(cuid())
+  doorcardId    String    @unique
+  totalViews    Int       @default(0)
+  uniqueViews   Int       @default(0)
+  totalPrints   Int       @default(0)
+  totalShares   Int       @default(0)
+  lastViewedAt  DateTime?
+  lastPrintedAt DateTime?
+
+  doorcard Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([totalViews])
+  @@index([uniqueViews])
+  @@index([lastViewedAt])
+}
+
 // Enums based on production data analysis
 enum College {
   SKYLINE
@@ -125,4 +176,13 @@ enum AppointmentCategory {
   LAB // Lab
   HOURS_BY_ARRANGEMENT // Hours by Arrangement
   REFERENCE // Reference
+}
+
+enum AnalyticsEvent {
+  VIEW // Someone viewed the doorcard
+  PRINT_PREVIEW // Someone opened print preview
+  PRINT_DOWNLOAD // Someone downloaded PDF
+  EDIT_STARTED // Owner started editing
+  SHARE // Someone shared the doorcard
+  SEARCH_RESULT // Found via search
 }

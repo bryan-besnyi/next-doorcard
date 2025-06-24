@@ -116,9 +116,9 @@ export interface DoorcardListResponse {
 }
 
 // Helper types for day/time utilities
-export interface WeeklySchedule {
+export type WeeklySchedule = {
   [key in DayOfWeek]?: Appointment[];
-}
+};
 
 export const DAYS_OF_WEEK: DayOfWeek[] = [
   "MONDAY",

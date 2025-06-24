@@ -18,9 +18,37 @@ import { useToast } from "@/hooks/use-toast";
 import { useDoorcardStore } from "@/store/use-doorcard-store";
 import { validateTimeBlockOverlap } from "@/lib/validations/doorcard";
 import type { TimeBlockData as TimeBlock } from "@/lib/validations/doorcard";
+import type { DayOfWeek } from "@/types/doorcard";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const activities = ["Class", "Office Hours", "Lab Time", "TBA"];
+
+// Helper functions to convert between display format and database format
+const displayToDB = (day: string): DayOfWeek => {
+  const mapping: Record<string, DayOfWeek> = {
+    Monday: "MONDAY",
+    Tuesday: "TUESDAY",
+    Wednesday: "WEDNESDAY",
+    Thursday: "THURSDAY",
+    Friday: "FRIDAY",
+    Saturday: "SATURDAY",
+    Sunday: "SUNDAY",
+  };
+  return mapping[day] || "MONDAY";
+};
+
+const dbToDisplay = (day: DayOfWeek): string => {
+  const mapping: Record<DayOfWeek, string> = {
+    MONDAY: "Monday",
+    TUESDAY: "Tuesday",
+    WEDNESDAY: "Wednesday",
+    THURSDAY: "Thursday",
+    FRIDAY: "Friday",
+    SATURDAY: "Saturday",
+    SUNDAY: "Sunday",
+  };
+  return mapping[day] || "Monday";
+};
 
 export default function TimeBlockForm() {
   const { timeBlocks, setTimeBlocks } = useDoorcardStore();
@@ -29,6 +57,7 @@ export default function TimeBlockForm() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [activity, setActivity] = useState("");
+  const [location, setLocation] = useState("");
   const [repeat, setRepeat] = useState<string[]>([]);
   const [showRepeatOptions, setShowRepeatOptions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,16 +67,18 @@ export default function TimeBlockForm() {
     setStartTime("");
     setEndTime("");
     setActivity("");
+    setLocation("");
     setRepeat([]);
     setShowRepeatOptions(false);
     setEditingId(null);
   };
 
   const handleEdit = (block: TimeBlock) => {
-    setDay(block.day);
+    setDay(dbToDisplay(block.day));
     setStartTime(block.startTime);
     setEndTime(block.endTime);
     setActivity(block.activity);
+    setLocation(block.location || "");
     setEditingId(block.id);
     setShowRepeatOptions(false);
     setRepeat([]);
@@ -63,8 +94,9 @@ export default function TimeBlockForm() {
       return;
     }
 
+    const dbDay = displayToDB(day);
     const newBlock = {
-      day,
+      day: dbDay,
       startTime,
       endTime,
       activity,
@@ -89,23 +121,25 @@ export default function TimeBlockForm() {
       ? timeBlocks.filter((block) => block.id !== editingId)
       : [...timeBlocks];
 
-    const createTimeBlock = (day: string): TimeBlock => ({
+    const createTimeBlock = (dayValue: DayOfWeek): TimeBlock => ({
       id: editingId || Math.random().toString(36).substr(2, 9),
-      day,
+      day: dayValue,
       startTime,
       endTime,
       activity,
+      location: location.trim() || undefined,
     });
 
     // Add the original day
-    newTimeBlocks.push(createTimeBlock(day));
+    newTimeBlocks.push(createTimeBlock(dbDay));
 
     // Add repeated days if not editing
     if (!editingId) {
       repeat.forEach((repeatDay) => {
         if (repeatDay !== day) {
+          const repeatDbDay = displayToDB(repeatDay);
           const repeatedBlock = {
-            day: repeatDay,
+            day: repeatDbDay,
             startTime,
             endTime,
             activity,
@@ -126,8 +160,9 @@ export default function TimeBlockForm() {
           }
 
           newTimeBlocks.push({
-            ...createTimeBlock(repeatDay),
+            ...createTimeBlock(repeatDbDay),
             id: Math.random().toString(36).substr(2, 9),
+            location: location.trim() || undefined,
           });
         }
       });
@@ -176,11 +211,14 @@ export default function TimeBlockForm() {
           >
             <div className="space-y-1">
               <div className="font-medium">
-                {block.day} • {formatTime(block.startTime)} -{" "}
+                {dbToDisplay(block.day)} • {formatTime(block.startTime)} -{" "}
                 {formatTime(block.endTime)}
               </div>
               <div className="text-sm text-muted-foreground">
                 {block.activity}
+                {block.location && (
+                  <span className="ml-2">• {block.location}</span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -245,6 +283,17 @@ export default function TimeBlockForm() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Location (optional)</Label>
+              <Input
+                id="location"
+                type="text"
+                placeholder="e.g., Room 2312, Library, Building 17-201"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

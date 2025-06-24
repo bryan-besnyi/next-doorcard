@@ -7,7 +7,7 @@ declare namespace Cypress {
      * Custom command to log in a user
      * @example cy.login('test@example.com', 'password123')
      */
-    login(email: string, password: string): Chainable<void>;
+    login(email: string, password?: string): Chainable<void>;
 
     /**
      * Custom command to login as the verified test user
@@ -32,5 +32,14 @@ declare namespace Cypress {
      * @example cy.waitForPageLoad()
      */
     waitForPageLoad(): Chainable<void>;
+
+    session(
+      id: any,
+      setup?: () => void,
+      options?: {
+        validate?: () => void;
+        cacheAcrossSpecs?: boolean;
+      }
+    ): Chainable<any>;
   }
 }

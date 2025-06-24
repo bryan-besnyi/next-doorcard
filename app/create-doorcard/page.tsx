@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import CampusTermSelector from "./components/CampusTermSelector";
 import BasicInfoForm from "./components/BasicInfoForm";
 import TimeBlockForm from "./components/TimeBlockForm";
 import PreviewDoorcard from "./components/PreviewDoorcard";
@@ -17,10 +18,11 @@ import { Spinner } from "@/components/ui/spinner";
 import AutoSaveIndicator from "@/components/AutoSaveIndicator";
 
 const steps = [
-  { number: 1, label: "Basic Info" },
-  { number: 2, label: "Time Blocks" },
-  { number: 3, label: "Preview" },
-  { number: 4, label: "Print & Export" },
+  { number: 1, label: "Campus & Term" },
+  { number: 2, label: "Basic Info" },
+  { number: 3, label: "Time Blocks" },
+  { number: 4, label: "Preview" },
+  { number: 5, label: "Print & Export" },
 ];
 
 export default function CreateDoorcardPage() {
@@ -29,12 +31,14 @@ export default function CreateDoorcardPage() {
   const { toast } = useToast();
   const { data: session } = useSession();
   const [pageLoading, setPageLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
   const {
     name,
     doorcardName,
     officeNumber,
     term,
     year,
+    college,
     timeBlocks,
     currentStep,
     setCurrentStep,
@@ -60,7 +64,16 @@ export default function CreateDoorcardPage() {
         try {
           setMode("edit", doorcardId);
           await loadDoorcard(doorcardId);
-          setCurrentStep(0); // Always start at step 1 for editing
+
+          // Check if a specific step was requested
+          const stepParam = searchParams.get("step");
+          const requestedStep = stepParam ? parseInt(stepParam, 10) : 1;
+          const validStep = Math.max(
+            0,
+            Math.min(requestedStep, steps.length - 1)
+          );
+          setCurrentStep(validStep); // Start at requested step or Step 1 for editing
+
           toast({
             title: "Success",
             description: "Doorcard loaded successfully.",
@@ -117,26 +130,32 @@ export default function CreateDoorcardPage() {
   }, [session, router]);
 
   const handleNext = async () => {
-    if (validateCurrentStep()) {
-      try {
-        await saveEntireState();
-        setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
-      } catch (error) {
-        console.error("Error saving draft:", error);
+    setIsValidating(true);
+    try {
+      const isValid = await validateCurrentStep();
+      if (isValid) {
+        try {
+          await saveEntireState();
+          setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
+        } catch (error) {
+          console.error("Error saving draft:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to save draft. Please try again.",
+          });
+        }
+      } else {
         toast({
           variant: "destructive",
-          title: "Error",
-          description: "Failed to save draft. Please try again.",
+          title: "Validation Error",
+          description:
+            errors.general?.[0] ||
+            "Please fill in all required fields correctly.",
         });
       }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Validation Error",
-        description:
-          errors.general?.[0] ||
-          "Please fill in all required fields correctly.",
-      });
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -145,7 +164,8 @@ export default function CreateDoorcardPage() {
   };
 
   const handleSubmit = async () => {
-    if (!validateCurrentStep()) {
+    const isValid = await validateCurrentStep();
+    if (!isValid) {
       toast({
         variant: "destructive",
         title: "Validation Error",
@@ -176,16 +196,25 @@ export default function CreateDoorcardPage() {
           officeNumber,
           term,
           year,
+          college,
           timeBlocks,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error ||
-            `Failed to ${searchParams.get("id") ? "update" : "create"} doorcard`
-        );
+        let errorMessage = `Failed to ${
+          searchParams.get("id") ? "update" : "create"
+        } doorcard`;
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          // Response doesn't contain valid JSON, use status text or default message
+          errorMessage = response.statusText || errorMessage;
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (draftId) {
@@ -249,12 +278,14 @@ export default function CreateDoorcardPage() {
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <BasicInfoForm sessionName={session?.user?.name} />;
+        return <CampusTermSelector />;
       case 1:
-        return <TimeBlockForm />;
+        return <BasicInfoForm sessionName={session?.user?.name} />;
       case 2:
-        return <PreviewDoorcard />;
+        return <TimeBlockForm />;
       case 3:
+        return <PreviewDoorcard />;
+      case 4:
         return (
           <PrintExportDoorcard
             data={{ name, doorcardName, officeNumber, timeBlocks }}
@@ -266,9 +297,9 @@ export default function CreateDoorcardPage() {
   };
 
   useEffect(() => {
-    if (currentStep === 2) {
+    if (currentStep === 3) {
       setStepViewed("preview");
-    } else if (currentStep === 3) {
+    } else if (currentStep === 4) {
       setStepViewed("print");
     }
   }, [currentStep, setStepViewed]);
@@ -330,9 +361,11 @@ export default function CreateDoorcardPage() {
                 currentStep === steps.length - 1 ? handleSubmit : handleNext
               }
               variant="default"
-              disabled={isLoading.savingDraft || isLoading.submitting}
+              disabled={
+                isLoading.savingDraft || isLoading.submitting || isValidating
+              }
             >
-              {isLoading.savingDraft || isLoading.submitting
+              {isLoading.savingDraft || isLoading.submitting || isValidating
                 ? "Loading..."
                 : currentStep === steps.length - 1
                 ? searchParams.get("id")

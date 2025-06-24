@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const [email, setEmail] = useState("besnyib@smccd.edu");
   const [password, setPassword] = useState("password123");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     const result = await signIn("credentials", {
       email,
       password,
@@ -18,6 +20,7 @@ export default function LoginPage() {
     });
     if (result?.error) {
       console.error(result.error);
+      setError("Invalid email or password. Please try again.");
     } else {
       router.push("/dashboard");
     }
@@ -33,6 +36,14 @@ export default function LoginPage() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" defaultValue="true" />
+          {error && (
+            <p
+              data-testid="login-error"
+              className="text-red-500 text-sm text-center"
+            >
+              {error}
+            </p>
+          )}
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email-address" className="sr-only">
