@@ -20,8 +20,25 @@ import { validateTimeBlockOverlap } from "@/lib/validations/doorcard";
 import type { TimeBlockData as TimeBlock } from "@/lib/validations/doorcard";
 import type { DayOfWeek } from "@/types/doorcard";
 
-const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const days = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 const activities = ["Class", "Office Hours", "Lab Time", "TBA"];
+
+const categories = [
+  { value: "OFFICE_HOURS", label: "Office Hours" },
+  { value: "IN_CLASS", label: "In Class" },
+  { value: "LECTURE", label: "Lecture" },
+  { value: "LAB", label: "Lab" },
+  { value: "HOURS_BY_ARRANGEMENT", label: "Hours by Arrangement" },
+  { value: "REFERENCE", label: "Reference" },
+];
 
 // Helper functions to convert between display format and database format
 const displayToDB = (day: string): DayOfWeek => {
@@ -58,6 +75,7 @@ export default function TimeBlockForm() {
   const [endTime, setEndTime] = useState("");
   const [activity, setActivity] = useState("");
   const [location, setLocation] = useState("");
+  const [category, setCategory] = useState("");
   const [repeat, setRepeat] = useState<string[]>([]);
   const [showRepeatOptions, setShowRepeatOptions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,6 +86,7 @@ export default function TimeBlockForm() {
     setEndTime("");
     setActivity("");
     setLocation("");
+    setCategory("");
     setRepeat([]);
     setShowRepeatOptions(false);
     setEditingId(null);
@@ -79,13 +98,14 @@ export default function TimeBlockForm() {
     setEndTime(block.endTime);
     setActivity(block.activity);
     setLocation(block.location || "");
+    setCategory(block.category || "OFFICE_HOURS");
     setEditingId(block.id);
     setShowRepeatOptions(false);
     setRepeat([]);
   };
 
   const handleAddOrUpdate = () => {
-    if (!day || !startTime || !endTime || !activity) {
+    if (!day || !startTime || !endTime || !activity || !category) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -128,6 +148,14 @@ export default function TimeBlockForm() {
       endTime,
       activity,
       location: location.trim() || undefined,
+      category: category as
+        | "OFFICE_HOURS"
+        | "IN_CLASS"
+        | "LECTURE"
+        | "LAB"
+        | "HOURS_BY_ARRANGEMENT"
+        | "REFERENCE"
+        | undefined,
     });
 
     // Add the original day
@@ -163,6 +191,14 @@ export default function TimeBlockForm() {
             ...createTimeBlock(repeatDbDay),
             id: Math.random().toString(36).substr(2, 9),
             location: location.trim() || undefined,
+            category: category as
+              | "OFFICE_HOURS"
+              | "IN_CLASS"
+              | "LECTURE"
+              | "LAB"
+              | "HOURS_BY_ARRANGEMENT"
+              | "REFERENCE"
+              | undefined,
           });
         }
       });
@@ -283,6 +319,22 @@ export default function TimeBlockForm() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

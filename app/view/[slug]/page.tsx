@@ -207,9 +207,9 @@ export default function PublicDoorcardView() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-gray-200 print:hidden">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -263,93 +263,89 @@ export default function PublicDoorcardView() {
       </div>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="grid gap-6">
-          {/* Status */}
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Current Status
-                  </h3>
-                  <Badge
-                    variant={doorcard.isActive ? "default" : "secondary"}
-                    className="text-sm"
-                  >
-                    {doorcard.isActive ? "Currently Active" : "Inactive"}
-                  </Badge>
-                </div>
-                <Clock className="h-8 w-8 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Schedule & Office Hours</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {doorcard.appointments.length > 0 ? (
-                <div className="space-y-4">
-                  {doorcard.appointments
-                    .sort((a, b) => {
-                      const dayOrder = [
-                        "MONDAY",
-                        "TUESDAY",
-                        "WEDNESDAY",
-                        "THURSDAY",
-                        "FRIDAY",
-                        "SATURDAY",
-                        "SUNDAY",
-                      ];
-                      return (
-                        dayOrder.indexOf(a.dayOfWeek) -
-                        dayOrder.indexOf(b.dayOfWeek)
-                      );
-                    })
-                    .map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-1">
-                            <span className="font-medium text-gray-900">
-                              {formatDayOfWeek(appointment.dayOfWeek)}
-                            </span>
-                            <span className="text-gray-600">
-                              {formatTime(appointment.startTime)} -{" "}
-                              {formatTime(appointment.endTime)}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">
-                              {appointment.name}
-                            </span>
-                            {appointment.location && (
-                              <span className="ml-2">
-                                • {appointment.location}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="ml-4">
-                          {formatCategory(appointment.category)}
-                        </Badge>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No scheduled appointments or office hours.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      <div className="w-full relative">
+        {/* Compact Status Indicator - Upper Right */}
+        <div className="print:hidden absolute top-4 right-4 z-10">
+          <Badge
+            variant={doorcard.isActive ? "default" : "secondary"}
+            className="text-xs shadow-sm"
+          >
+            {doorcard.isActive ? "Active" : "Inactive"}
+          </Badge>
         </div>
+
+        {/* Schedule - Full Width Table */}
+        {doorcard.appointments.length > 0 ? (
+          <div className="w-full">
+            {/* Table View */}
+            <PrintableDoorcard doorcard={doorcard} />
+
+            {/* List View - Hidden in Print */}
+            <div className="print:hidden max-w-4xl mx-auto px-4 py-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Appointment Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {doorcard.appointments
+                      .sort((a, b) => {
+                        const dayOrder = [
+                          "MONDAY",
+                          "TUESDAY",
+                          "WEDNESDAY",
+                          "THURSDAY",
+                          "FRIDAY",
+                          "SATURDAY",
+                          "SUNDAY",
+                        ];
+                        return (
+                          dayOrder.indexOf(a.dayOfWeek) -
+                          dayOrder.indexOf(b.dayOfWeek)
+                        );
+                      })
+                      .map((appointment) => (
+                        <div
+                          key={appointment.id}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-1">
+                              <span className="font-medium text-gray-900">
+                                {formatDayOfWeek(appointment.dayOfWeek)}
+                              </span>
+                              <span className="text-gray-600">
+                                {formatTime(appointment.startTime)} -{" "}
+                                {formatTime(appointment.endTime)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">
+                                {appointment.name}
+                              </span>
+                              {appointment.location && (
+                                <span className="ml-2">
+                                  • {appointment.location}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="ml-4">
+                            {formatCategory(appointment.category)}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+            <p>No scheduled appointments or office hours.</p>
+          </div>
+        )}
       </div>
     </div>
   );

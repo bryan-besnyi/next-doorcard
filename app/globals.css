@@ -16,13 +16,13 @@
     --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 210 40% 96%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,6 +31,12 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
+
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
 
     --radius: 0.5rem;
   }
@@ -63,6 +69,12 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -80,6 +92,204 @@
   
   #__next {
     height: 100%;
+  }
+}
+
+/* Print Styles for Doorcard */
+@media print {
+  @page {
+    size: 8.5in 11in;
+    margin: 0.4in;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Override gray backgrounds for print */
+  html, body {
+    background: white !important;
+    background-color: white !important;
+  }
+
+  /* Remove all gray backgrounds during print */
+  .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+    background: white !important;
+    background-color: white !important;
+  }
+
+  /* Ensure main page containers are white */
+  .min-h-screen, .min-h-full {
+    background: white !important;
+    background-color: white !important;
+  }
+
+  body {
+    font-size: 4px !important;
+    line-height: 0.9 !important;
+  }
+
+  /* Hide navigation, footer, and other UI elements in print */
+  nav, header, footer, .navbar, .footer {
+    display: none !important;
+  }
+
+  /* Hide buttons and interactive elements */
+  button, .btn, input[type="button"], input[type="submit"] {
+    display: none !important;
+  }
+
+  /* Hide specific UI elements */
+  .bg-gray-800, .text-white.text-2xl.p-5 {
+    display: none !important;
+  }
+
+  /* Hide NextJS development indicators and overlays */
+  #__next-build-watcher,
+  [data-nextjs-dev-overlay],
+  [data-nextjs-dev-overlay-portal],
+  .__next-dev-overlay,
+  .__next-dev-overlay-portal,
+  [id*="__next"],
+  [class*="__next"],
+  [data-nextjs-toast],
+  [data-nextjs-indicator] {
+    display: none !important;
+  }
+
+  /* Hide any development mode indicators */
+  div[style*="position: fixed"][style*="z-index"],
+  div[data-overlay],
+  div[class*="dev-overlay"],
+  div[class*="development"] {
+    display: none !important;
+  }
+
+  /* Remove card styling for print */
+  .printable-doorcard {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  /* Remove all card borders and shadows */
+  div[class*="border"], div[class*="shadow"], div[class*="rounded"] {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Ensure clean table presentation */
+  table {
+    border: 1px solid #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove container padding and margins */
+  .w-full, .max-w-4xl, .mx-auto, .px-4, .py-8, .p-8 {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .print-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-container h2 {
+    font-size: 10px !important;
+    margin-bottom: 1px !important;
+    font-weight: bold !important;
+  }
+
+  .print-container p {
+    font-size: 6px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .print-container table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    font-size: 4px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-container th {
+    padding: 0.25px !important;
+    font-size: 4px !important;
+    font-weight: bold !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #333 !important;
+    text-align: center !important;
+  }
+
+  .print-container th:first-child {
+    width: 10% !important;
+  }
+
+  .print-container th:nth-child(n+2) {
+    width: 12.8% !important;
+  }
+
+  .print-container td {
+    padding: 0.125px 0.25px !important;
+    vertical-align: top !important;
+    border: 1px solid #333 !important;
+    height: 8px !important;
+    overflow: hidden !important;
+    font-size: 3px !important;
+  }
+
+  .print-container td:first-child {
+    width: 10% !important;
+    text-align: center !important;
+    font-size: 3px !important;
+  }
+
+  .print-container td:nth-child(n+2) {
+    width: 12.8% !important;
+  }
+
+  .print-container .time-block {
+    background-color: #e3f2fd !important;
+    font-size: 3px !important;
+    line-height: 0.9 !important;
+    padding: 0.25px !important;
+  }
+
+  .print-container .activity-name {
+    font-weight: bold !important;
+    margin-bottom: 0px !important;
+    color: #1565c0 !important;
+    font-size: 3px !important;
+  }
+
+  .print-container .time-range {
+    font-size: 2px !important;
+    color: #1976d2 !important;
+    margin: 0 !important;
+  }
+
+  .print-container .location {
+    font-size: 2px !important;
+    color: #1976d2 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide non-essential elements */
+  .print\:hidden {
+    display: none !important;
   }
 }
 

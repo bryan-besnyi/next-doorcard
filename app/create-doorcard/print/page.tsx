@@ -151,9 +151,41 @@ function PrintDoorcardContent() {
 
   console.log("Rendering PrintExportDoorcard component inside print-container");
   return (
-    <div className="print-container">
-      <PrintExportDoorcard data={doorcard} isPrintView={true} />
-    </div>
+    <>
+      <style jsx global>{`
+        @media print {
+          /* Hide everything except our print content */
+          body * {
+            visibility: hidden;
+          }
+          .print-container,
+          .print-container * {
+            visibility: visible;
+          }
+          .print-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          /* Hide any remaining navigation elements */
+          nav,
+          header,
+          footer,
+          .navbar,
+          .footer,
+          .bg-gray-800,
+          button,
+          .btn {
+            display: none !important;
+            visibility: hidden !important;
+          }
+        }
+      `}</style>
+      <div className="print-container">
+        <PrintExportDoorcard data={doorcard} isPrintView={true} />
+      </div>
+    </>
   );
 }
 

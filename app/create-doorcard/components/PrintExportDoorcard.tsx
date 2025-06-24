@@ -22,6 +22,7 @@ interface TimeBlock {
   endTime: string;
   activity: string;
   location?: string;
+  category?: string;
 }
 
 interface DoorcardData {
@@ -43,18 +44,65 @@ const convertToPST = (time: string) => {
   return `${adjustedHours}:${minutes.toString().padStart(2, "0")} ${period}`;
 };
 
-const timeSlots = Array.from({ length: 28 }, (_, i) => {
-  const hour = Math.floor(i / 2) + 8;
+// Helper function to extract course code from activity name
+const extractCourseCode = (activity: string) => {
+  // If activity contains " - ", take only the part before it
+  if (activity.includes(" - ")) {
+    return activity.split(" - ")[0];
+  }
+  // If activity contains "CS", "MATH", etc., try to extract just the course code
+  const courseCodeMatch = activity.match(/^([A-Z]{2,4}\s*\d{1,4}[A-Z]?)/);
+  if (courseCodeMatch) {
+    return courseCodeMatch[1];
+  }
+  // For activities like "Office Hours", "Lab", keep as is but make shorter
+  if (activity.toLowerCase().includes("office hours")) return "Office Hours";
+  if (activity.toLowerCase().includes("lab")) return "Lab";
+  // Return first 12 characters to ensure it fits
+  return activity.substring(0, 12);
+};
+
+// Include all 7 days for print layout (matches production)
+const days = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+const dayAbbreviations = ["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"];
+
+// Match production time range: 7 AM to 10 PM (30 slots = 15 hours)
+const timeSlots = Array.from({ length: 30 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 7;
   const minute = i % 2 === 0 ? "00" : "30";
+  const value = `${hour.toString().padStart(2, "0")}:${minute}`;
+  const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
   const period = hour >= 12 ? "PM" : "AM";
-  const display12Hour = hour % 12 || 12;
-  return {
-    label: `${display12Hour}:${minute} ${period}`,
-    value: `${hour.toString().padStart(2, "0")}:${minute}`,
-  };
+  const label = `${displayHour}:${minute} ${period}`;
+  return { value, label };
 });
 
-const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+// Category colors matching production
+const categoryColors = {
+  OFFICE_HOURS: "#E1E2CA",
+  IN_CLASS: "#99B5D5",
+  LECTURE: "#D599C5",
+  LAB: "#EDAC80",
+  HOURS_BY_ARRANGEMENT: "#99D5A1",
+  REFERENCE: "#AD99D5",
+};
+
+const categoryLabels = {
+  OFFICE_HOURS: "Office Hours",
+  IN_CLASS: "In Class",
+  LECTURE: "Lecture",
+  LAB: "Lab",
+  HOURS_BY_ARRANGEMENT: "Hours by Arrang",
+  REFERENCE: "Reference",
+};
 
 export default function PrintExportDoorcard({
   data,
@@ -106,9 +154,11 @@ export default function PrintExportDoorcard({
                 const rowSpan = (endHour - startHour) * 2;
                 return `<td style="background-color:#f0fdf4;padding:0.5rem;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb" rowspan="${rowSpan}"><div>${convertToPST(
                   timeBlock.startTime
-                )} - ${convertToPST(timeBlock.endTime)}</div><div>${
+                )} - ${convertToPST(
+                  timeBlock.endTime
+                )}</div><div>${extractCourseCode(
                   timeBlock.activity
-                }</div></td>`;
+                )}</div></td>`;
               }
               const isBlocked = data.timeBlocks.some(
                 (block) =>
@@ -155,89 +205,247 @@ export default function PrintExportDoorcard({
   });
 
   const renderContent = () => (
-    <Card>
-      <CardContent className="p-6" ref={printRef}>
-        <h2 className="text-xl font-bold mb-1">{data.doorcardName}</h2>
-        <p className="text-sm text-gray-600 mb-6">
-          {data.name} - Office #{data.officeNumber}
-        </p>
+    <div className={isPrintView ? "print-container" : ""}>
+      <style jsx>{`
+        @media print {
+          .print-container {
+            width: 534px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            font-family: Verdana, Arial, sans-serif !important;
+            font-size: 6px !important;
+          }
+          .faculty-header {
+            width: 100% !important;
+            background-color: #f5f5f5 !important;
+            border: 1px solid #ccc !important;
+            margin-bottom: 1px !important;
+          }
+          .faculty-name {
+            font-size: 10px !important;
+            font-weight: bold !important;
+            padding: 2px 4px !important;
+          }
+          .faculty-info {
+            font-size: 6px !important;
+            padding: 0.5px 4px !important;
+            line-height: 1 !important;
+          }
+          .schedule-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            border: 1px solid #ccc !important;
+            font-size: 5px !important;
+          }
+          .schedule-table th {
+            background-color: #f0f0f0 !important;
+            border: 1px solid #ccc !important;
+            padding: 0.5px 1px !important;
+            text-align: center !important;
+            font-weight: bold !important;
+            font-size: 5px !important;
+            line-height: 1 !important;
+          }
+          .schedule-table td {
+            border: 1px solid #ccc !important;
+            padding: 0.25px 0.5px !important;
+            vertical-align: top !important;
+            height: 10px !important;
+            text-align: center !important;
+            line-height: 1 !important;
+          }
+          .time-column {
+            width: 50px !important;
+            background-color: #f8f8f8 !important;
+            font-size: 4px !important;
+          }
+          .day-column {
+            width: 55px !important;
+          }
+          .appointment-cell {
+            font-size: 4px !important;
+            line-height: 0.9 !important;
+            padding: 0.5px !important;
+          }
+          .appointment-time {
+            font-size: 3px !important;
+            margin-top: 0.5px !important;
+            line-height: 1 !important;
+          }
+          .legend-table {
+            width: 515px !important;
+            margin: 1px auto 0 !important;
+            border: 1px solid #ccc !important;
+            font-size: 6px !important;
+          }
+          .legend-table td {
+            padding: 0.5px 2px !important;
+            border: 1px solid #ccc !important;
+            line-height: 1 !important;
+          }
+          .legend-color {
+            width: 12px !important;
+            height: 8px !important;
+          }
+        }
+      `}</style>
 
-        <table className="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
-          <thead>
-            <tr>
-              <th className="w-24 p-2 border-b border-r border-gray-200 sr-only">
-                Time
-              </th>
-              {days.map((day) => (
-                <th
-                  key={day}
-                  className="p-2 text-center border-b border-r last:border-r-0 border-gray-200 font-medium text-sm"
-                >
-                  {day}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {timeSlots.map((slot) => (
-              <tr key={slot.value}>
-                <td className="p-2 text-xs text-gray-600 border-r border-b border-gray-200">
-                  {slot.label}
-                </td>
-                {days.map((day) => {
-                  const timeBlock = data.timeBlocks.find(
-                    (block) =>
-                      block.day === day && block.startTime === slot.value
-                  );
-                  if (timeBlock) {
-                    const startHour = Number.parseInt(
-                      timeBlock.startTime.split(":")[0]
-                    );
-                    const endHour = Number.parseInt(
-                      timeBlock.endTime.split(":")[0]
-                    );
-                    const rowSpan = (endHour - startHour) * 2;
-                    return (
-                      <td
-                        key={`${day}-${slot.value}`}
-                        rowSpan={rowSpan}
-                        className="bg-green-50 p-2 text-xs border-r last:border-r-0 border-b border-gray-200"
-                      >
-                        <div>
-                          {convertToPST(timeBlock.startTime)} -{" "}
-                          {convertToPST(timeBlock.endTime)}
-                        </div>
-                        <div>{timeBlock.activity}</div>
-                        {timeBlock.location && (
-                          <div className="text-xs text-gray-600">
-                            {timeBlock.location}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  }
-                  const isBlocked = data.timeBlocks.some(
-                    (block) =>
-                      block.day === day &&
-                      slot.value >= block.startTime &&
-                      slot.value < block.endTime
-                  );
-                  if (!isBlocked) {
-                    return (
-                      <td
-                        key={`${day}-${slot.value}`}
-                        className="border-r last:border-r-0 border-b border-gray-200"
-                      ></td>
-                    );
-                  }
-                  return null;
-                })}
+      <Card className={isPrintView ? "shadow-none border-none" : ""}>
+        <CardContent
+          className={`${isPrintView ? "p-0" : "p-6"}`}
+          ref={printRef}
+        >
+          {/* Faculty Header - matching production with user details at top */}
+          <div className="faculty-header">
+            <div className="faculty-name">{data.name}</div>
+            <div className="faculty-info">
+              <strong>Semester:</strong> Spring 2020
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "2px 8px",
+              }}
+            >
+              <div className="faculty-info">
+                <strong>Office Phone:</strong> (650) 358-6794
+              </div>
+              <div className="faculty-info">
+                <strong>Division:</strong> District Office
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "2px 8px",
+              }}
+            >
+              <div className="faculty-info">
+                <strong>Office Number:</strong> {data.officeNumber}
+              </div>
+              <div className="faculty-info">
+                <strong>Email:</strong> faculty@smccd.edu
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule Table with all 7 days */}
+          <table className="schedule-table">
+            <thead>
+              <tr>
+                <th className="time-column">Time</th>
+                {dayAbbreviations.map((day) => (
+                  <th key={day} className="day-column">
+                    {day}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+            </thead>
+            <tbody>
+              {timeSlots.map((slot) => (
+                <tr key={slot.value}>
+                  <td className="time-column">{slot.label}</td>
+                  {days.map((day) => {
+                    const timeBlock = data.timeBlocks.find(
+                      (block) =>
+                        block.day === day && block.startTime === slot.value
+                    );
+                    if (timeBlock) {
+                      const startHour = Number.parseInt(
+                        timeBlock.startTime.split(":")[0]
+                      );
+                      const startMin = Number.parseInt(
+                        timeBlock.startTime.split(":")[1]
+                      );
+                      const endHour = Number.parseInt(
+                        timeBlock.endTime.split(":")[0]
+                      );
+                      const endMin = Number.parseInt(
+                        timeBlock.endTime.split(":")[1]
+                      );
+
+                      // Calculate rowspan based on 30-minute intervals
+                      const startSlots =
+                        (startHour - 7) * 2 + (startMin === 30 ? 1 : 0);
+                      const endSlots =
+                        (endHour - 7) * 2 + (endMin === 30 ? 1 : 0);
+                      const rowSpan = endSlots - startSlots;
+
+                      const backgroundColor =
+                        categoryColors[
+                          (timeBlock.category ||
+                            "OFFICE_HOURS") as keyof typeof categoryColors
+                        ] || "#E1E2CA";
+
+                      return (
+                        <td
+                          key={`${day}-${slot.value}`}
+                          rowSpan={rowSpan}
+                          className="appointment-cell"
+                          style={{ backgroundColor }}
+                        >
+                          <div style={{ fontWeight: "bold" }}>
+                            {extractCourseCode(timeBlock.activity)}
+                          </div>
+                          <div className="appointment-time">
+                            {convertToPST(timeBlock.startTime).replace(" ", "")}{" "}
+                            - {convertToPST(timeBlock.endTime).replace(" ", "")}
+                          </div>
+                        </td>
+                      );
+                    }
+                    const isBlocked = data.timeBlocks.some(
+                      (block) =>
+                        block.day === day &&
+                        slot.value >= block.startTime &&
+                        slot.value < block.endTime
+                    );
+                    if (!isBlocked) {
+                      return (
+                        <td key={`${day}-${slot.value}`} className="day-column">
+                          &nbsp;
+                        </td>
+                      );
+                    }
+                    return null;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Legend - matching production */}
+          <table className="legend-table">
+            <tbody>
+              <tr>
+                <td
+                  colSpan={2}
+                  style={{ fontWeight: "bold", color: "#0066cc" }}
+                >
+                  Legend
+                </td>
+              </tr>
+              {Object.entries(categoryLabels).map(([key, label]) => (
+                <tr key={key}>
+                  <td
+                    className="legend-color"
+                    style={{
+                      backgroundColor:
+                        categoryColors[key as keyof typeof categoryColors],
+                    }}
+                  >
+                    &nbsp;
+                  </td>
+                  <td style={{ color: "#666" }}>{label}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
   );
 
   if (isPrintView) {
