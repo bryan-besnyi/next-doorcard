@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import AuthProvider from "@/components/AuthProvider";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -30,7 +29,7 @@ const Navbar = () => {
           <div className="text-3xl font-bold">Faculty Doorcard</div>
         </div>
         <div className="flex items-center gap-4">
-          <Button>Login</Button>
+          <Link href="/login">Login</Link>
         </div>
       </div>
     </div>
@@ -47,10 +46,6 @@ const Footer = () => {
         <p className="mt-2">
           <Link href="/login" className="text-blue-400 hover:text-blue-300">
             Faculty Login
-          </Link>
-          {" | "}
-          <Link href="/register" className="text-blue-400 hover:text-blue-300">
-            Create Account
           </Link>
         </p>
       </div>
