@@ -29,8 +29,6 @@ const days = [
   "Saturday",
   "Sunday",
 ];
-const activities = ["Class", "Office Hours", "Lab Time", "TBA"];
-
 const categories = [
   { value: "OFFICE_HOURS", label: "Office Hours" },
   { value: "IN_CLASS", label: "In Class" },
@@ -73,7 +71,7 @@ export default function TimeBlockForm() {
   const [day, setDay] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [activity, setActivity] = useState("");
+  const [courseName, setCourseName] = useState("");
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("");
   const [repeat, setRepeat] = useState<string[]>([]);
@@ -84,7 +82,7 @@ export default function TimeBlockForm() {
     setDay("");
     setStartTime("");
     setEndTime("");
-    setActivity("");
+    setCourseName("");
     setLocation("");
     setCategory("");
     setRepeat([]);
@@ -96,7 +94,7 @@ export default function TimeBlockForm() {
     setDay(dbToDisplay(block.day));
     setStartTime(block.startTime);
     setEndTime(block.endTime);
-    setActivity(block.activity);
+    setCourseName(block.activity || "");
     setLocation(block.location || "");
     setCategory(block.category || "OFFICE_HOURS");
     setEditingId(block.id);
@@ -105,7 +103,7 @@ export default function TimeBlockForm() {
   };
 
   const handleAddOrUpdate = () => {
-    if (!day || !startTime || !endTime || !activity || !category) {
+    if (!day || !startTime || !endTime || !courseName || !category) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -119,7 +117,7 @@ export default function TimeBlockForm() {
       day: dbDay,
       startTime,
       endTime,
-      activity,
+      activity: courseName, // Use courseName as the activity name
     };
 
     // Check for time block overlap
@@ -146,7 +144,7 @@ export default function TimeBlockForm() {
       day: dayValue,
       startTime,
       endTime,
-      activity,
+      activity: courseName, // Use courseName as the activity name
       location: location.trim() || undefined,
       category: category as
         | "OFFICE_HOURS"
@@ -170,7 +168,7 @@ export default function TimeBlockForm() {
             day: repeatDbDay,
             startTime,
             endTime,
-            activity,
+            activity: courseName, // Use courseName as the activity name
           };
 
           // Check for overlap with repeated blocks
@@ -205,6 +203,14 @@ export default function TimeBlockForm() {
     }
 
     setTimeBlocks(newTimeBlocks);
+    console.log(
+      "[DEBUG] TimeBlockForm: Setting time blocks to store:",
+      newTimeBlocks
+    );
+    console.log(
+      "[DEBUG] TimeBlockForm: Current store time blocks after set:",
+      timeBlocks
+    );
     resetForm();
     toast({
       title: "Success",
@@ -305,27 +311,22 @@ export default function TimeBlockForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="activity">Activity</Label>
-                <Select value={activity} onValueChange={setActivity}>
-                  <SelectTrigger id="activity">
-                    <SelectValue placeholder="Select an activity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activities.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {a}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="courseName">Course Name</Label>
+                <Input
+                  id="courseName"
+                  type="text"
+                  placeholder="e.g., MATH 101, CS 110, Office Hours"
+                  value={courseName}
+                  onChange={(e) => setCourseName(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">Activity Type</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger id="category">
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder="Select an activity type" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (

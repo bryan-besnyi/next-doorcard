@@ -8,7 +8,7 @@ import CampusTermSelector from "./components/CampusTermSelector";
 import BasicInfoForm from "./components/BasicInfoForm";
 import TimeBlockForm from "./components/TimeBlockForm";
 import PreviewDoorcard from "./components/PreviewDoorcard";
-import PrintExportDoorcard from "./components/PrintExportDoorcard";
+import UnifiedDoorcard from "@/components/UnifiedDoorcard";
 import { useDoorcardStore } from "@/store/use-doorcard-store";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "next-auth/react";
@@ -16,6 +16,7 @@ import { Save } from "lucide-react";
 import StepIndicator from "./components/StepIndicator";
 import { Spinner } from "@/components/ui/spinner";
 import AutoSaveIndicator from "@/components/AutoSaveIndicator";
+import PrintDoorcard from "./components/PrintDoorcard";
 
 const steps = [
   { number: 1, label: "Campus & Term" },
@@ -29,7 +30,7 @@ function CreateDoorcardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [pageLoading, setPageLoading] = useState(true);
   const [isValidating, setIsValidating] = useState(false);
   const {
@@ -106,7 +107,7 @@ function CreateDoorcardContent() {
       } else {
         setMode("create");
         reset();
-        setCurrentStep(0); // Ensure we start at the first step for new doorcards
+        setCurrentStep(0);
       }
       setPageLoading(false);
     };
@@ -124,10 +125,10 @@ function CreateDoorcardContent() {
   ]);
 
   useEffect(() => {
-    if (!session) {
+    if (status === "unauthenticated") {
       router.push("/login");
     }
-  }, [session, router]);
+  }, [status, router]);
 
   const handleNext = async () => {
     setIsValidating(true);
@@ -135,10 +136,54 @@ function CreateDoorcardContent() {
       const isValid = await validateCurrentStep();
       if (isValid) {
         try {
+          console.log("[DEBUG] Before saveEntireState");
           await saveEntireState();
+          console.log("[DEBUG] After saveEntireState");
           setCurrentStep(Math.min(currentStep + 1, steps.length - 1));
-        } catch (error) {
-          console.error("Error saving draft:", error);
+        } catch (error: any) {
+          console.error("[DEBUG] Error in saveEntireState:", error);
+          // Draft collision handling
+          if (
+            error instanceof Error &&
+            error.message.includes("already have a draft for this term")
+          ) {
+            toast({
+              variant: "destructive",
+              title: "Draft Exists",
+              description: (
+                <span>
+                  You already have a draft for this term.
+                  <br />
+                  <button
+                    className="underline text-blue-600 mr-2"
+                    onClick={() => {
+                      router.replace(`/create-doorcard?draft=true`);
+                    }}
+                  >
+                    Resume Draft
+                  </button>
+                  <button
+                    className="underline text-red-600"
+                    onClick={async () => {
+                      await fetch("/api/doorcards/draft?all=true", {
+                        method: "DELETE",
+                      });
+                      toast({
+                        title: "Draft Deleted",
+                        description: "Draft deleted. Please try again.",
+                      });
+                      reset();
+                      setCurrentStep(0);
+                    }}
+                  >
+                    Delete Draft
+                  </button>
+                </span>
+              ),
+            });
+            return;
+          }
+          // Fallback error
           toast({
             variant: "destructive",
             title: "Error",
@@ -185,20 +230,40 @@ function CreateDoorcardContent() {
         : "/api/doorcards";
       const method = searchParams.get("id") ? "PUT" : "POST";
 
+      const isUpdate = !!searchParams.get("id");
+      const requestData = isUpdate
+        ? {
+            name,
+            doorcardName,
+            officeNumber,
+            term,
+            year,
+            college,
+            timeBlocks, // Update API expects timeBlocks
+          }
+        : {
+            name,
+            doorcardName,
+            officeNumber,
+            term,
+            year,
+            college,
+            appointments: timeBlocks.map((block) => ({
+              name: block.activity,
+              startTime: block.startTime,
+              endTime: block.endTime,
+              dayOfWeek: block.day,
+              category: block.category || "OFFICE_HOURS",
+              location: block.location,
+            })), // Create API expects appointments
+          };
+
       const response = await fetch(endpoint, {
         method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          doorcardName,
-          officeNumber,
-          term,
-          year,
-          college,
-          timeBlocks,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
@@ -286,11 +351,7 @@ function CreateDoorcardContent() {
       case 3:
         return <PreviewDoorcard />;
       case 4:
-        return (
-          <PrintExportDoorcard
-            data={{ name, doorcardName, officeNumber, timeBlocks }}
-          />
-        );
+        return <PrintDoorcard />;
       default:
         return null;
     }
@@ -304,7 +365,12 @@ function CreateDoorcardContent() {
     }
   }, [currentStep, setStepViewed]);
 
-  if (pageLoading || isLoading.loadingDoorcard || isLoading.loadingDraft) {
+  if (
+    pageLoading ||
+    isLoading.loadingDoorcard ||
+    isLoading.loadingDraft ||
+    status === "loading"
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner size="lg" />
@@ -312,7 +378,7 @@ function CreateDoorcardContent() {
     );
   }
 
-  if (!session) {
+  if (status === "unauthenticated") {
     return null;
   }
 

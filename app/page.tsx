@@ -3,6 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { COLLEGES, type College } from "@/types/doorcard";
+import { Search, Clock, MapPin, Calendar } from "lucide-react";
+
 // Custom hook for debounced values
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -19,12 +26,12 @@ function useDebounce<T>(value: T, delay: number): T {
 
   return debouncedValue;
 }
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { COLLEGES, type College } from "@/types/doorcard";
-import { Search, Clock, MapPin, Calendar } from "lucide-react";
+// College display names for badges
+const COLLEGE_BADGE_NAMES: Record<College, string> = {
+  CSM: "CSM",
+  SKYLINE: "Skyline",
+  CANADA: "Cañada",
+};
 
 interface PublicDoorcard {
   id: string;
@@ -37,6 +44,7 @@ interface PublicDoorcard {
   slug?: string;
   user: {
     name: string;
+    username?: string;
     college?: College;
   };
   appointmentCount: number;
@@ -99,15 +107,20 @@ export default function Home() {
   }, [doorcards, selectedCampus, debouncedSearchTerm]);
 
   const handleDoorcardClick = (doorcard: PublicDoorcard) => {
-    const slug = doorcard.slug || doorcard.id;
-    router.push(`/view/${slug}`);
+    const username =
+      doorcard.user?.username ||
+      doorcard.user?.name?.toLowerCase().replace(/\s+/g, "-") ||
+      "user";
+    router.push(`/view/${username}`);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Faculty Door Cards</h1>
+        <h1 className="text-3xl font-bold mt-5 text-gray-900">
+          Faculty Door Cards
+        </h1>
         <p className="text-gray-600 mt-1">
           San Mateo County Community College District
         </p>
@@ -173,7 +186,7 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {filteredDoorcards.map((doorcard) => (
                 <Card
                   key={doorcard.id}
@@ -211,11 +224,8 @@ export default function Home() {
                         </div>
                         {doorcard.college && (
                           <Badge variant="outline">
-                            {
-                              COLLEGES.find(
-                                (c) => c.value === doorcard.college
-                              )?.label.split(" ")[0]
-                            }
+                            {COLLEGE_BADGE_NAMES[doorcard.college] ||
+                              doorcard.college}
                           </Badge>
                         )}
                       </div>

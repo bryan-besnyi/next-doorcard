@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,7 +11,7 @@ model User {
   id             String          @id @default(cuid())
   name           String?
   email          String          @unique
-  username       String?         @unique // For legacy compatibility if needed
+  username       String?         @unique
   password       String
   role           UserRole        @default(FACULTY)
   college        College?
@@ -23,7 +20,6 @@ model User {
   doorcards      Doorcard[]
   doorcardDrafts DoorcardDraft[]
 
-  // Indexes for performance
   @@index([email])
   @@index([username])
   @@index([college])
@@ -31,32 +27,28 @@ model User {
 }
 
 model Doorcard {
-  id           String    @id @default(cuid())
-  name         String // Faculty name
-  doorcardName String // Display name for doorcard
+  id           String              @id @default(cuid())
+  name         String
+  doorcardName String
   officeNumber String
-  startDate    DateTime? // Term start date
-  endDate      DateTime? // Term end date
-  term         String // e.g., "Spring 2024"
-  year         String // e.g., "2024"
+  startDate    DateTime?
+  endDate      DateTime?
+  term         String
+  year         String
   college      College?
-  isActive     Boolean   @default(true)
-  isPublic     Boolean   @default(true) // Public viewing enabled
-  slug         String?   @unique // SEO-friendly URL slug
-
-  // Relations
+  isActive     Boolean             @default(true)
+  isPublic     Boolean             @default(true)
+  slug         String?             @unique
   userId       String
-  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termId       String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   appointments Appointment[]
+  termRelation Term?               @relation(fields: [termId], references: [id])
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   analytics    DoorcardAnalytics[]
   metrics      DoorcardMetrics?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Note: We handle unique active doorcard validation in application code rather than DB constraint
-  // because PostgreSQL unique constraints don't work well with conditional uniqueness (isActive = true)
-  // Indexes for better query performance
   @@index([userId])
   @@index([term, year])
   @@index([college])
@@ -65,23 +57,21 @@ model Doorcard {
   @@index([slug])
   @@index([createdAt])
   @@index([officeNumber])
+  @@index([termId])
 }
 
 model Appointment {
-  id        String              @id @default(cuid())
-  name      String
-  startTime String // "08:00" (24-hour format)
-  endTime   String // "09:30" (24-hour format)
-  dayOfWeek DayOfWeek
-  category  AppointmentCategory @default(OFFICE_HOURS)
-  location  String? // Optional room/location
-
-  // Relations
+  id         String              @id @default(cuid())
+  name       String
+  startTime  String
+  endTime    String
+  dayOfWeek  DayOfWeek
+  category   AppointmentCategory @default(OFFICE_HOURS)
+  location   String?
   doorcardId String
-  doorcard   Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  doorcard   Doorcard            @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
 
   @@index([doorcardId])
   @@index([dayOfWeek])
@@ -92,7 +82,7 @@ model Appointment {
 model DoorcardDraft {
   id                 String   @id @default(cuid())
   userId             String
-  originalDoorcardId String? // Optional reference to the doorcard being edited
+  originalDoorcardId String?
   data               Json
   lastUpdated        DateTime @updatedAt
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -100,33 +90,28 @@ model DoorcardDraft {
   @@unique([userId, id])
   @@index([userId])
   @@index([originalDoorcardId])
-  @@index([lastUpdated]) // For cleanup of old drafts
+  @@index([lastUpdated])
 }
 
-// Analytics tracking for real engagement metrics
 model DoorcardAnalytics {
   id         String         @id @default(cuid())
   doorcardId String
   eventType  AnalyticsEvent
-  ipAddress  String? // Optional for privacy
-  userAgent  String? // Browser/device info
-  referrer   String? // How they found the doorcard
-  sessionId  String? // Track unique sessions
-  metadata   Json? // Additional event data
+  ipAddress  String?
+  userAgent  String?
+  referrer   String?
+  sessionId  String?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  doorcard   Doorcard       @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
 
-  doorcard Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  // Indexes for fast analytics queries
   @@index([doorcardId, eventType])
   @@index([doorcardId, createdAt])
   @@index([eventType, createdAt])
   @@index([sessionId])
-  @@index([createdAt]) // For time-based analytics
+  @@index([createdAt])
 }
 
-// Aggregated metrics for fast dashboard queries
 model DoorcardMetrics {
   id            String    @id @default(cuid())
   doorcardId    String    @unique
@@ -136,17 +121,37 @@ model DoorcardMetrics {
   totalShares   Int       @default(0)
   lastViewedAt  DateTime?
   lastPrintedAt DateTime?
-
-  doorcard Doorcard @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
-
-  updatedAt DateTime @updatedAt
+  updatedAt     DateTime  @updatedAt
+  doorcard      Doorcard  @relation(fields: [doorcardId], references: [id], onDelete: Cascade)
 
   @@index([totalViews])
   @@index([uniqueViews])
   @@index([lastViewedAt])
 }
 
-// Enums based on production data analysis
+model Term {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  year        String
+  season      String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean    @default(false)
+  isArchived  Boolean    @default(false)
+  isUpcoming  Boolean    @default(false)
+  archiveDate DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  doorcards   Doorcard[]
+
+  @@index([year])
+  @@index([season])
+  @@index([isActive])
+  @@index([isArchived])
+  @@index([startDate])
+  @@index([endDate])
+}
+
 enum College {
   SKYLINE
   CSM
@@ -170,19 +175,19 @@ enum DayOfWeek {
 }
 
 enum AppointmentCategory {
-  OFFICE_HOURS // Office Hours
-  IN_CLASS // In Class
-  LECTURE // Lecture
-  LAB // Lab
-  HOURS_BY_ARRANGEMENT // Hours by Arrangement
-  REFERENCE // Reference
+  OFFICE_HOURS
+  IN_CLASS
+  LECTURE
+  LAB
+  HOURS_BY_ARRANGEMENT
+  REFERENCE
 }
 
 enum AnalyticsEvent {
-  VIEW // Someone viewed the doorcard
-  PRINT_PREVIEW // Someone opened print preview
-  PRINT_DOWNLOAD // Someone downloaded PDF
-  EDIT_STARTED // Owner started editing
-  SHARE // Someone shared the doorcard
-  SEARCH_RESULT // Found via search
+  VIEW
+  PRINT_PREVIEW
+  PRINT_DOWNLOAD
+  EDIT_STARTED
+  SHARE
+  SEARCH_RESULT
 }

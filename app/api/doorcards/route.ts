@@ -76,6 +76,19 @@ export async function POST(req: Request) {
           college: validatedData.college,
           slug: cleanSlug,
           userId: user.id,
+          appointments: {
+            create: validatedData.appointments.map((apt) => ({
+              name: apt.name,
+              startTime: apt.startTime,
+              endTime: apt.endTime,
+              dayOfWeek: apt.dayOfWeek,
+              category: apt.category,
+              location: apt.location,
+            })),
+          },
+        },
+        include: {
+          appointments: true,
         },
       });
 
@@ -120,6 +133,14 @@ export async function GET() {
         userId: user.id,
       },
       include: {
+        user: {
+          select: {
+            name: true,
+            username: true,
+            email: true,
+            college: true,
+          },
+        },
         appointments: {
           orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
         },

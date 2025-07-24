@@ -1,10 +1,10 @@
-import bcrypt from "bcryptjs";
-import {
+const bcrypt = require("bcryptjs");
+const {
   PrismaClient,
   College,
   DayOfWeek,
   AppointmentCategory,
-} from "@prisma/client";
+} = require("@prisma/client");
 
 const prismaForSeed = new PrismaClient();
 
@@ -384,9 +384,6 @@ const courseTemplates = {
   ],
 };
 
-const terms = ["Fall", "Spring", "Summer"];
-const years = ["2024", "2025"];
-
 function getRandomElement<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
@@ -408,6 +405,68 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash("password123", 12);
 
+  // Create terms first
+  console.log("📅 Creating academic terms...");
+  const terms = [
+    {
+      name: "Fall 2024",
+      year: "2024",
+      season: "Fall",
+      startDate: new Date("2024-08-26"),
+      endDate: new Date("2024-12-20"),
+      isActive: false,
+      isArchived: true,
+      isUpcoming: false,
+    },
+    {
+      name: "Spring 2025",
+      year: "2025",
+      season: "Spring",
+      startDate: new Date("2025-01-22"),
+      endDate: new Date("2025-05-24"),
+      isActive: false,
+      isArchived: false,
+      isUpcoming: false,
+    },
+    {
+      name: "Summer 2025",
+      year: "2025",
+      season: "Summer",
+      startDate: new Date("2025-06-10"),
+      endDate: new Date("2025-08-15"),
+      isActive: true,
+      isArchived: false,
+      isUpcoming: false,
+    },
+    {
+      name: "Fall 2025",
+      year: "2025",
+      season: "Fall",
+      startDate: new Date("2025-08-26"),
+      endDate: new Date("2025-12-20"),
+      isActive: false,
+      isArchived: false,
+      isUpcoming: true,
+    },
+  ];
+
+  const createdTerms = [];
+  for (const termData of terms) {
+    let term = await prismaForSeed.term.findUnique({
+      where: { name: termData.name },
+    });
+
+    if (!term) {
+      term = await prismaForSeed.term.create({
+        data: termData,
+      });
+      console.log(`✅ Created term: ${term.name}`);
+    } else {
+      console.log(`✅ Term ${termData.name} already exists`);
+    }
+    createdTerms.push(term);
+  }
+
   // Create all fake users
   for (const userData of fakeUserData) {
     let user = await prismaForSeed.user.findUnique({
@@ -415,10 +474,30 @@ async function main() {
     });
 
     if (!user) {
+      // Generate username from name or email
+      let username =
+        userData.name
+          ?.toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "") || userData.email.split("@")[0];
+
+      // Ensure username is unique
+      let counter = 1;
+      let finalUsername = username;
+      while (
+        await prismaForSeed.user.findUnique({
+          where: { username: finalUsername },
+        })
+      ) {
+        finalUsername = `${username}-${counter}`;
+        counter++;
+      }
+
       user = await prismaForSeed.user.create({
         data: {
           name: userData.name,
           email: userData.email,
+          username: finalUsername,
           password: hashedPassword,
           role: "FACULTY",
           college: userData.college,
@@ -434,14 +513,13 @@ async function main() {
     const numDoorcards = Math.random() > 0.6 ? 2 : 1;
 
     for (let i = 0; i < numDoorcards; i++) {
-      const term = getRandomElement(terms);
-      const year = getRandomElement(years);
-      const isActive = year === "2025" || (year === "2024" && term === "Fall");
+      const term = getRandomElement(createdTerms);
+      const isActive = term.isActive;
 
       // Generate a slug
       const slug = `${userData.name
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, "-")}-${term.toLowerCase()}-${year}`;
+        .replace(/[^a-z0-9]/g, "-")}-${term.season.toLowerCase()}-${term.year}`;
 
       // Check if doorcard already exists
       const existingDoorcard = await prismaForSeed.doorcard.findUnique({
@@ -460,13 +538,14 @@ async function main() {
             ? userData.name
             : `Prof. ${userData.name.split(" ").pop()}`,
           officeNumber: userData.office,
-          term,
-          year,
+          term: term.name,
+          year: term.year,
           college: userData.college,
           slug,
           isPublic: true,
           isActive,
           userId: user.id,
+          termId: term.id, // Link to the Term model
         },
       });
 

@@ -20,7 +20,7 @@ export default function BasicInfoPage() {
     officeNumber,
     term,
     year,
-  }); // Add this line
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

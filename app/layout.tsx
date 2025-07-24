@@ -2,8 +2,8 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import AuthProvider from "@/components/AuthProvider";
+import Navbar from "@/components/Navbar";
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -11,29 +11,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "Faculty Doorcard App",
   description: "Create and manage faculty doorcards",
-};
-
-const Navbar = () => {
-  return (
-    <div className="bg-gray-800 text-white text-2xl p-5">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Image
-            src="/smccd-logo-white.svg"
-            alt="SMCCD Logo"
-            width={250}
-            height={150}
-            className="pr-4 border-r-2 border-white"
-            priority
-          />
-          <div className="text-3xl font-bold">Faculty Doorcard</div>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/login">Login</Link>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const Footer = () => {

@@ -55,6 +55,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cypress": "^14.5.2",
     "cypress-axe": "^1.6.0",
     "cypress-real-events": "^1.14.0",
     "eslint": "^9",
@@ -67,6 +68,6 @@
     "typescript": "^5"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
+    "seed": "npx tsx prisma/seed.ts"
   }
 }

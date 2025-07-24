@@ -2,10 +2,20 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PrintExportDoorcard from "../components/PrintExportDoorcard";
+import UnifiedDoorcard from "@/components/UnifiedDoorcard";
 import { useToast } from "@/hooks/use-toast";
 import { analytics } from "@/lib/analytics";
 import { Loader2 } from "lucide-react";
+
+interface Appointment {
+  id: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: string;
+  category: string;
+  location?: string;
+}
 
 interface TimeBlock {
   id: string;
@@ -13,6 +23,8 @@ interface TimeBlock {
   startTime: string;
   endTime: string;
   activity: string;
+  location?: string;
+  category?: string;
 }
 
 interface Doorcard {
@@ -20,7 +32,12 @@ interface Doorcard {
   name: string;
   doorcardName: string;
   officeNumber: string;
-  timeBlocks: TimeBlock[];
+  term?: string;
+  year?: string;
+  college?: string;
+  isActive?: boolean;
+  timeBlocks?: TimeBlock[];
+  appointments?: Appointment[];
 }
 
 function PrintDoorcardContent() {
@@ -65,6 +82,8 @@ function PrintDoorcardContent() {
 
         const doorcardData = isDraft ? data.data : data;
         console.log("Processed doorcard data:", doorcardData);
+        console.log("Time blocks:", doorcardData.timeBlocks);
+        console.log("Appointments:", doorcardData.appointments);
 
         setDoorcard(doorcardData);
         setIsLoading(false);
@@ -149,7 +168,65 @@ function PrintDoorcardContent() {
     );
   }
 
-  console.log("Rendering PrintExportDoorcard component inside print-container");
+  // Convert uppercase day names to lowercase for UnifiedDoorcard
+  const convertTimeBlocks = (blocks: TimeBlock[]) => {
+    const dayMap: { [key: string]: string } = {
+      MONDAY: "Monday",
+      TUESDAY: "Tuesday",
+      WEDNESDAY: "Wednesday",
+      THURSDAY: "Thursday",
+      FRIDAY: "Friday",
+      SATURDAY: "Saturday",
+      SUNDAY: "Sunday",
+    };
+
+    return blocks.map((block) => ({
+      ...block,
+      day: dayMap[block.day] || block.day,
+      location: block.location ?? undefined, // Convert null to undefined
+    }));
+  };
+
+  // Convert appointments to timeBlocks if needed
+  const convertAppointmentsToTimeBlocks = (
+    appointments: Appointment[]
+  ): TimeBlock[] => {
+    const dayMap: { [key: string]: string } = {
+      MONDAY: "Monday",
+      TUESDAY: "Tuesday",
+      WEDNESDAY: "Wednesday",
+      THURSDAY: "Thursday",
+      FRIDAY: "Friday",
+      SATURDAY: "Saturday",
+      SUNDAY: "Sunday",
+    };
+
+    return appointments.map((apt) => ({
+      id: apt.id,
+      day: dayMap[apt.dayOfWeek] || apt.dayOfWeek,
+      startTime: apt.startTime,
+      endTime: apt.endTime,
+      activity: apt.name,
+      location: apt.location ?? undefined,
+      category: apt.category,
+    }));
+  };
+
+  // Prepare the data for UnifiedDoorcard
+  const preparedData = {
+    ...doorcard,
+    timeBlocks: doorcard.timeBlocks
+      ? convertTimeBlocks(doorcard.timeBlocks)
+      : doorcard.appointments
+      ? convertAppointmentsToTimeBlocks(doorcard.appointments)
+      : [],
+  };
+
+  console.log("Original doorcard:", doorcard);
+  console.log("Prepared data for UnifiedDoorcard:", preparedData);
+  console.log("Final timeBlocks:", preparedData.timeBlocks);
+
+  console.log("Rendering UnifiedDoorcard component in print mode");
   return (
     <>
       <style jsx global>{`
@@ -183,7 +260,12 @@ function PrintDoorcardContent() {
         }
       `}</style>
       <div className="print-container">
-        <PrintExportDoorcard data={doorcard} isPrintView={true} />
+        <UnifiedDoorcard
+          mode="print"
+          data={preparedData}
+          showControls={false}
+          onPrint={() => analytics.trackPrint(doorcard.id, "download")}
+        />
       </div>
     </>
   );

@@ -55,6 +55,7 @@ export async function GET(req: Request) {
         user: {
           select: {
             name: true,
+            username: true,
             college: true,
           },
         },

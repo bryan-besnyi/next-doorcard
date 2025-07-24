@@ -21,11 +21,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const terms = ["Fall", "Spring", "Summer"];
-const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 10 }, (_, i) =>
-  (currentYear + i).toString()
-);
+interface Term {
+  id: string;
+  name: string;
+  year: string;
+  season: string;
+  startDate?: string;
+  endDate?: string;
+  isActive?: boolean;
+  isArchived?: boolean;
+  isUpcoming?: boolean;
+}
 
 const CampusTermSelector = () => {
   const router = useRouter();
@@ -39,6 +45,9 @@ const CampusTermSelector = () => {
     validateDuplicateDoorcards,
   } = useDoorcardStore();
 
+  const [upcomingTerms, setUpcomingTerms] = useState<Term[]>([]);
+  const [loadingTerms, setLoadingTerms] = useState(true);
+
   const [validationState, setValidationState] = useState<{
     isChecking: boolean;
     result?: {
@@ -48,6 +57,86 @@ const CampusTermSelector = () => {
       isError?: boolean;
     };
   }>({ isChecking: false });
+
+  // Fetch upcoming terms
+  useEffect(() => {
+    const fetchUpcomingTerms = async () => {
+      try {
+        setLoadingTerms(true);
+        const response = await fetch("/api/terms/upcoming");
+        if (response.ok) {
+          const terms = await response.json();
+          setUpcomingTerms(terms);
+        } else {
+          console.error("Failed to fetch upcoming terms");
+          // Fallback to current year + next year
+          const currentYear = new Date().getFullYear();
+          const fallbackTerms = [
+            {
+              id: "fall-current",
+              name: "Fall",
+              year: currentYear.toString(),
+              season: "Fall",
+            },
+            {
+              id: "spring-next",
+              name: "Spring",
+              year: (currentYear + 1).toString(),
+              season: "Spring",
+            },
+            {
+              id: "summer-next",
+              name: "Summer",
+              year: (currentYear + 1).toString(),
+              season: "Summer",
+            },
+            {
+              id: "fall-next",
+              name: "Fall",
+              year: (currentYear + 1).toString(),
+              season: "Fall",
+            },
+          ];
+          setUpcomingTerms(fallbackTerms);
+        }
+      } catch (error) {
+        console.error("Error fetching upcoming terms:", error);
+        // Fallback to current year + next year
+        const currentYear = new Date().getFullYear();
+        const fallbackTerms = [
+          {
+            id: "fall-current",
+            name: "Fall",
+            year: currentYear.toString(),
+            season: "Fall",
+          },
+          {
+            id: "spring-next",
+            name: "Spring",
+            year: (currentYear + 1).toString(),
+            season: "Spring",
+          },
+          {
+            id: "summer-next",
+            name: "Summer",
+            year: (currentYear + 1).toString(),
+            season: "Summer",
+          },
+          {
+            id: "fall-next",
+            name: "Fall",
+            year: (currentYear + 1).toString(),
+            season: "Fall",
+          },
+        ];
+        setUpcomingTerms(fallbackTerms);
+      } finally {
+        setLoadingTerms(false);
+      }
+    };
+
+    fetchUpcomingTerms();
+  }, []);
 
   // Check for duplicates when campus/term/year changes
   useEffect(() => {
@@ -87,6 +176,7 @@ const CampusTermSelector = () => {
   }, [college, term, year, mode, validateDuplicateDoorcards]);
 
   const handleSelectChange = (value: string, field: string) => {
+    console.log(`[DEBUG] handleSelectChange: field=${field}, value=${value}`);
     setBasicInfo({ [field]: value });
   };
 
@@ -106,8 +196,8 @@ const CampusTermSelector = () => {
       <CardHeader className="text-center">
         <CardTitle>Select Campus and Term</CardTitle>
         <CardDescription>
-          Choose the campus and term for your new doorcard. We&apos;ll check for
-          existing doorcards to avoid duplicates.
+          Choose the campus and upcoming term for your new doorcard. We&apos;ll
+          check for existing doorcards to avoid duplicates.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -138,58 +228,40 @@ const CampusTermSelector = () => {
           )}
         </div>
 
-        {/* Term and Year Selection */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="term" className="text-base font-medium">
-              Term
-            </Label>
-            <Select
-              value={term}
-              onValueChange={(value) => handleSelectChange(value, "term")}
-            >
-              <SelectTrigger id="term" className="h-12">
-                <SelectValue placeholder="Select term" />
-              </SelectTrigger>
-              <SelectContent>
-                {terms.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors?.basicInfo?.term && (
-              <p className="text-red-500 text-sm mt-2">
-                {errors.basicInfo.term}
-              </p>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="year" className="text-base font-medium">
-              Year
-            </Label>
-            <Select
-              value={year}
-              onValueChange={(value) => handleSelectChange(value, "year")}
-            >
-              <SelectTrigger id="year" className="h-12">
-                <SelectValue placeholder="Select year" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={y}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors?.basicInfo?.year && (
-              <p className="text-red-500 text-sm mt-2">
-                {errors.basicInfo.year}
-              </p>
-            )}
-          </div>
+        {/* Term Selection */}
+        <div>
+          <Label htmlFor="term" className="text-base font-medium">
+            Term
+          </Label>
+          <Select
+            value={term && year ? `${term} ${year}` : ""}
+            onValueChange={(value) => {
+              const [selectedTerm, selectedYear] = value.split(" ");
+              setBasicInfo({ term: selectedTerm, year: selectedYear });
+            }}
+            disabled={loadingTerms}
+          >
+            <SelectTrigger id="term" className="h-12">
+              <SelectValue
+                placeholder={
+                  loadingTerms ? "Loading terms..." : "Select upcoming term"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {upcomingTerms.map((t) => (
+                <SelectItem key={t.id} value={`${t.season} ${t.year}`}>
+                  {t.season} {t.year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors?.basicInfo?.term && (
+            <p className="text-red-500 text-sm mt-2">{errors.basicInfo.term}</p>
+          )}
+          {errors?.basicInfo?.year && (
+            <p className="text-red-500 text-sm mt-2">{errors.basicInfo.year}</p>
+          )}
         </div>
 
         {/* Validation Status */}

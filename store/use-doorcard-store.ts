@@ -35,7 +35,7 @@ export const timeBlockSchema = z.object({
     .string()
     .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format"),
   activity: z.string().min(1, "Activity is required"),
-  location: z.string().optional(),
+  location: z.string().nullable().optional(),
   category: z
     .enum([
       "OFFICE_HOURS",
@@ -240,8 +240,12 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
   },
 
   setTimeBlocks: (timeBlocks, options = {}) => {
+    console.log("[DEBUG] Store setTimeBlocks: Received time blocks:", timeBlocks);
+    console.log("[DEBUG] Store setTimeBlocks: Current state time blocks before set:", get().timeBlocks);
+    
     set((state) => {
       const newState = { ...state, timeBlocks, errors: {} };
+      console.log("[DEBUG] Store setTimeBlocks: New state time blocks:", newState.timeBlocks);
 
       // Only auto-save if appropriate and not explicitly skipped
       if (
@@ -341,13 +345,27 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
 
   validateCurrentStep: async () => {
     const state = get();
+    console.log("[DEBUG] validateCurrentStep: Current step:", state.currentStep);
+    console.log("[DEBUG] validateCurrentStep: Current time blocks:", state.timeBlocks);
+    console.log("[DEBUG] validateCurrentStep: Time blocks length:", state.timeBlocks.length);
+    
     try {
       switch (state.currentStep) {
         case 0: // Campus & Term Selection
-          if (!state.college || !state.term || !state.year) {
-            throw new Error("Please select campus, term, and year to proceed.");
+          const fieldErrors: Record<string, string> = {};
+          if (!state.college) fieldErrors.college = "Campus is required";
+          if (!state.term) fieldErrors.term = "Term is required";
+          if (!state.year) fieldErrors.year = "Year is required";
+          if (Object.keys(fieldErrors).length > 0) {
+            set((state) => ({
+              ...state,
+              errors: {
+                ...state.errors,
+                basicInfo: fieldErrors,
+              },
+            }));
+            return false;
           }
-
           // Check for duplicates (only for new doorcards)
           if (state.mode === "create") {
             const duplicateCheck = await state.validateDuplicateDoorcards();
@@ -355,7 +373,6 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
               throw new Error(duplicateCheck.message);
             }
           }
-
           return true;
         case 1: // Basic Info
           // Only validate the personal info fields (campus/term already validated)
@@ -364,9 +381,15 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
           }
           return true;
         case 2: // Time Blocks
+          console.log("[DEBUG] validateCurrentStep: Validating time blocks step");
+          console.log("[DEBUG] validateCurrentStep: Time blocks array:", state.timeBlocks);
+          console.log("[DEBUG] validateCurrentStep: Time blocks length:", state.timeBlocks.length);
+          
           if (state.timeBlocks.length === 0) {
+            console.log("[DEBUG] validateCurrentStep: No time blocks found, throwing error");
             throw new Error("At least one time block is required");
           }
+          console.log("[DEBUG] validateCurrentStep: Time blocks validation passed");
           return true;
         case 3: // Preview
           doorcardSchema.parse({
@@ -383,6 +406,7 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
           return true;
       }
     } catch (error) {
+      console.log("[DEBUG] validateCurrentStep: Validation error caught:", error);
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
         error.errors.forEach((err) => {
@@ -648,27 +672,49 @@ const useDoorcardStore = create<DoorcardState>((set, get) => ({
         throw new Error("Failed to fetch doorcard");
       }
       const doorcard = await safeJsonParse(response);
+      console.log("[loadDoorcard] API response:", doorcard);
 
-      set({
-        ...initialState,
-        mode: "edit",
-        originalDoorcardId: doorcardId,
-        name: typeof doorcard.name === "string" ? doorcard.name : "",
-        doorcardName:
-          typeof doorcard.doorcardName === "string"
-            ? doorcard.doorcardName
-            : "",
-        officeNumber:
-          typeof doorcard.officeNumber === "string"
-            ? doorcard.officeNumber
-            : "",
-        term: typeof doorcard.term === "string" ? doorcard.term : "",
-        year: typeof doorcard.year === "string" ? doorcard.year : "",
-        college: typeof doorcard.college === "string" ? doorcard.college : "",
-        timeBlocks: Array.isArray(doorcard.timeBlocks)
-          ? doorcard.timeBlocks
-          : [],
-        currentStep: 0,
+      // Map appointments to timeBlocks if needed
+      let timeBlocks: TimeBlock[] = [];
+      if (
+        Array.isArray(doorcard.timeBlocks) &&
+        doorcard.timeBlocks.length > 0
+      ) {
+        timeBlocks = doorcard.timeBlocks;
+      } else if (Array.isArray(doorcard.appointments)) {
+        timeBlocks = doorcard.appointments.map((apt: any) => ({
+          id: apt.id,
+          day: apt.dayOfWeek,
+          startTime: apt.startTime,
+          endTime: apt.endTime,
+          activity: apt.name,
+          location: apt.location,
+          category: apt.category,
+        }));
+      }
+
+      set((prev) => {
+        const newState = {
+          ...initialState,
+          mode: "edit" as DoorcardMode,
+          originalDoorcardId: doorcardId,
+          name: typeof doorcard.name === "string" ? doorcard.name : "",
+          doorcardName:
+            typeof doorcard.doorcardName === "string"
+              ? doorcard.doorcardName
+              : "",
+          officeNumber:
+            typeof doorcard.officeNumber === "string"
+              ? doorcard.officeNumber
+              : "",
+          term: typeof doorcard.term === "string" ? doorcard.term : "",
+          year: typeof doorcard.year === "string" ? doorcard.year : "",
+          college: typeof doorcard.college === "string" ? doorcard.college : "",
+          timeBlocks,
+          currentStep: 0,
+        };
+        console.log("[loadDoorcard] Store state after load:", newState);
+        return newState;
       });
     } catch (error) {
       console.error("Error loading doorcard:", error);

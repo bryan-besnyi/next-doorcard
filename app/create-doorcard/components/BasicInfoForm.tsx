@@ -87,7 +87,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({ sessionName }) => {
           id="name"
           value={name}
           onChange={handleInputChange}
-          required
           className={cn(errors?.basicInfo?.name && "border-red-500")}
         />
         {errors?.basicInfo?.name && (
@@ -101,7 +100,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({ sessionName }) => {
           id="doorcardName"
           value={doorcardName}
           onChange={handleInputChange}
-          required
           className={cn(errors?.basicInfo?.doorcardName && "border-red-500")}
         />
         {errors?.basicInfo?.doorcardName && (
@@ -117,7 +115,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({ sessionName }) => {
           id="officeNumber"
           value={officeNumber}
           onChange={handleInputChange}
-          required
           className={cn(errors?.basicInfo?.officeNumber && "border-red-500")}
         />
         {errors?.basicInfo?.officeNumber && (

@@ -46,6 +46,12 @@ interface Doorcard {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  user?: {
+    name?: string;
+    username?: string;
+    email?: string;
+    college?: string;
+  };
   timeBlocks?: Array<{
     id: string;
     day: string;
@@ -402,7 +408,12 @@ export default function DashboardPage() {
       {/* Simplified Top Navigation */}
       <nav className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-gray-900">My Doorcards</h1>
+          <h1
+            data-cypress-testid="dashboard-heading"
+            className="text-2xl font-semibold text-gray-900"
+          >
+            My Doorcards
+          </h1>
 
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -574,7 +585,6 @@ export default function DashboardPage() {
                     <option value="spring">Spring</option>
                     <option value="summer">Summer</option>
                     <option value="fall">Fall</option>
-                    <option value="winter">Winter</option>
                   </select>
                 </div>
 
@@ -698,13 +708,6 @@ function DoorcardItem({
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(e) => onSelect(doorcard.id, e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                aria-label={`Select ${doorcard.doorcardName}`}
-              />
               <div>
                 <h3 className="text-lg font-medium text-gray-900">
                   {doorcard.doorcardName}
@@ -737,7 +740,11 @@ function DoorcardItem({
             <div className="flex items-center space-x-2">
               <Button variant="outline" size="sm" asChild>
                 <Link
-                  href={`/view/${doorcard.slug || doorcard.id}`}
+                  href={`/view/${
+                    doorcard.user?.username ||
+                    doorcard.user?.name?.toLowerCase().replace(/\s+/g, "-") ||
+                    "user"
+                  }`}
                   target="_blank"
                 >
                   <ExternalLink className="h-4 w-4 mr-1" />
@@ -774,14 +781,7 @@ function DoorcardItem({
       }`}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(e) => onSelect(doorcard.id, e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
-            aria-label={`Select ${doorcard.doorcardName}`}
-          />
+        <div className="flex items-start justify-end">
           <Badge variant={doorcard.isActive ? "default" : "secondary"}>
             {doorcard.isActive ? "Active" : "Inactive"}
           </Badge>
@@ -828,7 +828,11 @@ function DoorcardItem({
         <div className="space-y-2 pt-4">
           <Button variant="outline" size="sm" className="w-full" asChild>
             <Link
-              href={`/view/${doorcard.slug || doorcard.id}`}
+              href={`/view/${
+                doorcard.user?.username ||
+                doorcard.user?.name?.toLowerCase().replace(/\s+/g, "-") ||
+                "user"
+              }`}
               target="_blank"
             >
               <ExternalLink className="h-4 w-4 mr-1" />

@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: Request,
@@ -28,6 +28,11 @@ export async function GET(
       where: {
         id,
         userId: user.id,
+      },
+      include: {
+        appointments: {
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        },
       },
     });
 
@@ -183,6 +188,123 @@ export async function DELETE(
     console.error("Error deleting doorcard:", error);
     return NextResponse.json(
       { error: "Failed to delete doorcard" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/doorcards/[id] - Update doorcard status
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { id } = await params;
+
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      isActive,
+      isPublic,
+      doorcardName,
+      officeNumber,
+      startDate,
+      endDate,
+      term,
+      year,
+      college,
+      timeblocks,
+    } = body;
+
+    // Validate required boolean fields
+    if (typeof isPublic !== "boolean") {
+      return NextResponse.json(
+        { error: "isPublic must be a boolean value" },
+        { status: 400 }
+      );
+    }
+
+    const updateData: any = {
+      isPublic,
+    };
+
+    // Only update isActive if provided
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
+
+    // Add optional fields if provided
+    if (doorcardName !== undefined) updateData.doorcardName = doorcardName;
+    if (officeNumber !== undefined) updateData.officeNumber = officeNumber;
+    if (startDate !== undefined && startDate !== "")
+      updateData.startDate = new Date(startDate);
+    if (endDate !== undefined && endDate !== "")
+      updateData.endDate = new Date(endDate);
+    if (term !== undefined) updateData.term = term;
+    if (year !== undefined) updateData.year = year;
+    if (college !== undefined) updateData.college = college;
+
+    // Handle timeblocks update if provided
+    if (timeblocks !== undefined && Array.isArray(timeblocks)) {
+      // First, delete existing appointments
+      await prisma.appointment.deleteMany({
+        where: { doorcardId: id },
+      });
+
+      // Then create new appointments
+      if (timeblocks.length > 0) {
+        await prisma.appointment.createMany({
+          data: timeblocks.map((tb: any) => ({
+            doorcardId: id,
+            name: tb.name || "Office Hours",
+            dayOfWeek: tb.dayOfWeek,
+            startTime: tb.startTime,
+            endTime: tb.endTime,
+            category: tb.category || "OFFICE_HOURS",
+            location: tb.location || null,
+          })),
+        });
+      }
+    }
+
+    const doorcard = await prisma.doorcard.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            college: true,
+          },
+        },
+        appointments: {
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        },
+        _count: {
+          select: {
+            appointments: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(doorcard);
+  } catch (error) {
+    console.error("Error updating doorcard:", error);
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    
+    return NextResponse.json(
+      { error: "Failed to update doorcard" },
       { status: 500 }
     );
   }
