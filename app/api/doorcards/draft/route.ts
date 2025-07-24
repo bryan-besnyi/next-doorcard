@@ -3,25 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-interface DraftData {
-  draftId?: string;
-  originalDoorcardId?: string;
-  term?: string;
-  year?: string;
-  name?: string;
-  doorcardName?: string;
-  officeNumber?: string;
-  college?: string;
-  timeBlocks?: Array<{
-    activity?: string;
-    startTime: string;
-    endTime: string;
-    day: string;
-    category?: string;
-    location?: string;
-  }>;
-  [key: string]: unknown;
-}
+import type { DraftData } from "@/types/api/utils";
 
 export async function GET() {
   try {

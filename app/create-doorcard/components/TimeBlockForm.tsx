@@ -95,7 +95,7 @@ export default function TimeBlockForm() {
     setStartTime(block.startTime);
     setEndTime(block.endTime);
     setCourseName(block.activity || "");
-    setLocation(block.location || "");
+    setLocation(block.location ?? "");
     setCategory(block.category || "OFFICE_HOURS");
     setEditingId(block.id);
     setShowRepeatOptions(false);
@@ -268,7 +268,7 @@ export default function TimeBlockForm() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => handleEdit(block)}
+                onClick={() => handleEdit(block as any)}
                 className={
                   editingId === block.id ? "bg-muted-foreground/20" : ""
                 }

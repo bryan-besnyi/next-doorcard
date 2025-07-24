@@ -2,18 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { College } from "@/types/doorcard";
 
-interface WhereClause {
-  isPublic: boolean;
-  isActive: boolean;
-  college?: College;
-  term?: string;
-  year?: string;
-  OR?: Array<{
-    name?: { contains: string; mode: "insensitive" };
-    doorcardName?: { contains: string; mode: "insensitive" };
-    user?: { name: { contains: string; mode: "insensitive" } };
-  }>;
-}
+import type { WhereClause } from "@/types/api/utils";
 
 export async function GET(req: Request) {
   try {

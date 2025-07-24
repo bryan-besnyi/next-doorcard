@@ -1,8 +1,5 @@
 import { cn } from "@/lib/utils";
-
-interface SkeletonProps {
-  className?: string;
-}
+import type { SkeletonProps } from "@/types/components/ui";
 
 function Skeleton({ className }: SkeletonProps) {
   return (
@@ -18,9 +15,7 @@ function Skeleton({ className }: SkeletonProps) {
   );
 }
 
-interface SkeletonCardProps {
-  className?: string;
-}
+import type { SkeletonCardProps } from "@/types/components/ui";
 
 function SkeletonCard({ className }: SkeletonCardProps) {
   return (
@@ -44,9 +39,7 @@ function SkeletonCard({ className }: SkeletonCardProps) {
   );
 }
 
-interface SkeletonDraftCardProps {
-  className?: string;
-}
+import type { SkeletonDraftCardProps } from "@/types/components/ui";
 
 function SkeletonDraftCard({ className }: SkeletonDraftCardProps) {
   return (
@@ -71,9 +64,7 @@ function SkeletonDraftCard({ className }: SkeletonDraftCardProps) {
   );
 }
 
-interface DashboardSkeletonProps {
-  showDrafts?: boolean;
-}
+import type { DashboardSkeletonProps } from "@/types/components/ui";
 
 function DashboardSkeleton({ showDrafts = true }: DashboardSkeletonProps) {
   return (

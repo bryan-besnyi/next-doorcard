@@ -35,15 +35,7 @@ import {
 } from "lucide-react";
 
 // Unified interfaces
-interface TimeBlock {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  activity: string;
-  location?: string;
-  category?: string;
-}
+import type { TimeBlock } from "@/types/store/doorcard";
 
 interface Appointment {
   id: string;
@@ -133,11 +125,13 @@ export default function UnifiedDoorcard({
     }));
   };
 
-  const timeBlocks = rawData.appointments
-    ? convertAppointmentsToTimeBlocks(rawData.appointments)
-    : rawData.timeBlocks || [];
+  const timeBlocks = (
+    "appointments" in rawData && rawData.appointments
+      ? convertAppointmentsToTimeBlocks(rawData.appointments)
+      : rawData.timeBlocks || []
+  ) as TimeBlock[];
 
-  const data = {
+  const data: DoorcardData = {
     ...rawData,
     timeBlocks,
   };

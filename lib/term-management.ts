@@ -1,24 +1,8 @@
 import { prisma } from "./prisma";
+import type { TermData, TermTransitionOptions } from "@/types/terms/management";
 
-export interface TermData {
-  id?: string;
-  name: string;
-  year: string;
-  season: string;
-  startDate: Date;
-  endDate: Date;
-  isActive?: boolean;
-  isArchived?: boolean;
-  isUpcoming?: boolean;
-  archiveDate?: Date;
-}
-
-export interface TermTransitionOptions {
-  archiveOldTerm?: boolean;
-  activateNewTerm?: boolean;
-  archiveOldDoorcards?: boolean;
-  notifyUsers?: boolean;
-}
+// Re-export types for backward compatibility
+export type { TermData, TermTransitionOptions } from "@/types/terms/management";
 
 export class TermManager {
   /**
@@ -36,12 +20,12 @@ export class TermManager {
    */
   static async getAllTerms() {
     return await prisma.term.findMany({
-      orderBy: [{ year: 'desc' }, { season: 'asc' }],
+      orderBy: [{ year: "desc" }, { season: "asc" }],
       include: {
         _count: {
-          select: { doorcards: true }
-        }
-      }
+          select: { doorcards: true },
+        },
+      },
     });
   }
 
@@ -53,7 +37,7 @@ export class TermManager {
     if (termData.isActive) {
       await prisma.term.updateMany({
         where: { isActive: true },
-        data: { isActive: false }
+        data: { isActive: false },
       });
     }
 
@@ -68,14 +52,17 @@ export class TermManager {
         isArchived: termData.isArchived || false,
         isUpcoming: termData.isUpcoming || false,
         archiveDate: termData.archiveDate,
-      }
+      },
     });
   }
 
   /**
    * Transition to a new term (activate new, archive old)
    */
-  static async transitionToNewTerm(newTermId: string, options: TermTransitionOptions = {}) {
+  static async transitionToNewTerm(
+    newTermId: string,
+    options: TermTransitionOptions = {}
+  ) {
     const {
       archiveOldTerm = true,
       activateNewTerm = true,
@@ -84,11 +71,11 @@ export class TermManager {
 
     // Get the new term
     const newTerm = await prisma.term.findUnique({
-      where: { id: newTermId }
+      where: { id: newTermId },
     });
 
     if (!newTerm) {
-      throw new Error('New term not found');
+      throw new Error("New term not found");
     }
 
     // Start transaction
@@ -97,11 +84,11 @@ export class TermManager {
       if (archiveOldTerm) {
         await tx.term.updateMany({
           where: { isActive: true },
-          data: { 
+          data: {
             isActive: false,
             isArchived: true,
-            archiveDate: new Date()
-          }
+            archiveDate: new Date(),
+          },
         });
       }
 
@@ -109,10 +96,10 @@ export class TermManager {
       if (activateNewTerm) {
         await tx.term.update({
           where: { id: newTermId },
-          data: { 
+          data: {
             isActive: true,
-            isUpcoming: false
-          }
+            isUpcoming: false,
+          },
         });
       }
 
@@ -121,13 +108,13 @@ export class TermManager {
         await tx.doorcard.updateMany({
           where: {
             termRelation: {
-              isArchived: true
-            }
+              isArchived: true,
+            },
           },
           data: {
             isActive: false,
-            isPublic: false
-          }
+            isPublic: false,
+          },
         });
       }
 
@@ -146,8 +133,8 @@ export class TermManager {
         data: {
           isActive: false,
           isArchived: true,
-          archiveDate: new Date()
-        }
+          archiveDate: new Date(),
+        },
       });
 
       // Archive associated doorcards
@@ -156,8 +143,8 @@ export class TermManager {
           where: { termId },
           data: {
             isActive: false,
-            isPublic: false
-          }
+            isPublic: false,
+          },
         });
       }
 
@@ -168,31 +155,33 @@ export class TermManager {
   /**
    * Get doorcards by term status
    */
-  static async getDoorcardsByTermStatus(status: 'active' | 'archived' | 'upcoming') {
+  static async getDoorcardsByTermStatus(
+    status: "active" | "archived" | "upcoming"
+  ) {
     const whereClause = {
       active: { isActive: true },
       archived: { isArchived: true },
-      upcoming: { isUpcoming: true }
+      upcoming: { isUpcoming: true },
     };
 
     return await prisma.doorcard.findMany({
       where: {
-        termRelation: whereClause[status]
+        termRelation: whereClause[status],
       },
       include: {
         user: {
-          select: { name: true, email: true, college: true }
+          select: { name: true, email: true, college: true },
         },
         termRelation: true,
         _count: {
-          select: { appointments: true }
-        }
+          select: { appointments: true },
+        },
       },
       orderBy: [
-        { termRelation: { year: 'desc' } },
-        { termRelation: { season: 'asc' } },
-        { name: 'asc' }
-      ]
+        { termRelation: { year: "desc" } },
+        { termRelation: { season: "asc" } },
+        { name: "asc" },
+      ],
     });
   }
 
@@ -204,8 +193,8 @@ export class TermManager {
       where: {
         endDate: { lt: new Date() },
         isActive: true,
-        isArchived: false
-      }
+        isArchived: false,
+      },
     });
   }
 
@@ -214,7 +203,7 @@ export class TermManager {
    */
   static async autoArchiveExpiredTerms() {
     const expiredTerms = await this.getTermsNeedingArchive();
-    
+
     for (const term of expiredTerms) {
       await this.archiveTerm(term.id, true);
     }
@@ -229,9 +218,9 @@ export class TermManager {
     return await prisma.term.findMany({
       where: {
         isUpcoming: true,
-        isArchived: false
+        isArchived: false,
       },
-      orderBy: [{ startDate: 'asc' }]
+      orderBy: [{ startDate: "asc" }],
     });
   }
 
@@ -247,9 +236,9 @@ export class TermManager {
         startDate: { lte: futureDate },
         isUpcoming: false,
         isActive: false,
-        isArchived: false
+        isArchived: false,
       },
-      data: { isUpcoming: true }
+      data: { isUpcoming: true },
     });
   }
 
@@ -260,24 +249,24 @@ export class TermManager {
     const [activeTerm, archivedTerms, upcomingTerms] = await Promise.all([
       this.getActiveTerm(),
       prisma.term.count({ where: { isArchived: true } }),
-      prisma.term.count({ where: { isUpcoming: true } })
+      prisma.term.count({ where: { isUpcoming: true } }),
     ]);
 
     return {
       activeTerm,
       archivedTermsCount: archivedTerms,
       upcomingTermsCount: upcomingTerms,
-      totalTerms: await prisma.term.count()
+      totalTerms: await prisma.term.count(),
     };
   }
 }
 
 // Predefined term seasons for consistency
 export const TERM_SEASONS = {
-  FALL: 'Fall',
-  SPRING: 'Spring', 
-  SUMMER: 'Summer',
-  WINTER: 'Winter'
+  FALL: "Fall",
+  SPRING: "Spring",
+  SUMMER: "Summer",
+  WINTER: "Winter",
 } as const;
 
 // Helper function to generate term name
@@ -290,12 +279,12 @@ export function getCurrentAcademicYear(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1; // 0-indexed
-  
+
   // Academic year typically runs from Fall to Summer
   // If we're in January-July, use previous year as academic year start
   if (month >= 1 && month <= 7) {
     return (year - 1).toString();
   }
-  
+
   return year.toString();
-} 
+}

@@ -8,9 +8,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { COLLEGES } from "@/types/doorcard";
 
-interface BasicInfoFormProps {
-  sessionName?: string | null | undefined;
-}
+import type { BasicInfoFormProps } from "@/types/components/forms";
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({ sessionName }) => {
   const {

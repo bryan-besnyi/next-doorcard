@@ -5,20 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-  errorInfo?: React.ErrorInfo;
-}
-
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ComponentType<{
-    error?: Error;
-    resetError: () => void;
-  }>;
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
-}
+import type { ErrorBoundaryState, ErrorBoundaryProps } from "@/types/components/ui";
 
 class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,

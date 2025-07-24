@@ -8,7 +8,7 @@ import CampusTermSelector from "./components/CampusTermSelector";
 import BasicInfoForm from "./components/BasicInfoForm";
 import TimeBlockForm from "./components/TimeBlockForm";
 import PreviewDoorcard from "./components/PreviewDoorcard";
-import UnifiedDoorcard from "@/components/UnifiedDoorcard";
+
 import { useDoorcardStore } from "@/store/use-doorcard-store";
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "next-auth/react";

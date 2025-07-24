@@ -12,18 +12,7 @@ import Link from "next/link";
 import { Progress } from "@/components/ui/progress";
 import type React from "react";
 
-interface DraftDoorcard {
-  id: string;
-  name: string;
-  lastUpdated: string;
-  completionPercentage: number;
-}
-
-interface ResumeDoorCardProps {
-  draft: DraftDoorcard;
-  onDelete: (id: string) => void;
-  isDeleting?: boolean;
-}
+import type { ResumeDoorCardProps } from "@/types/components/forms";
 
 export default function ResumeDoorcard({
   draft,

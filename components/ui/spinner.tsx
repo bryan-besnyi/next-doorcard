@@ -1,9 +1,5 @@
 import { cn } from "@/lib/utils";
-
-interface SpinnerProps {
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}
+import type { SpinnerProps } from "@/types/components/ui";
 
 export function Spinner({ size = "md", className }: SpinnerProps) {
   const sizeClasses = {
@@ -23,11 +19,7 @@ export function Spinner({ size = "md", className }: SpinnerProps) {
   );
 }
 
-interface LoadingButtonProps {
-  isLoading: boolean;
-  children: React.ReactNode;
-  loadingText?: string;
-}
+import type { LoadingButtonProps } from "@/types/components/ui";
 
 export function LoadingButton({
   isLoading,

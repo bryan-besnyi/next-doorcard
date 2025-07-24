@@ -21,17 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-interface Term {
-  id: string;
-  name: string;
-  year: string;
-  season: string;
-  startDate?: string;
-  endDate?: string;
-  isActive?: boolean;
-  isArchived?: boolean;
-  isUpcoming?: boolean;
-}
+import type { Term } from "@/types/components/forms";
 
 const CampusTermSelector = () => {
   const router = useRouter();

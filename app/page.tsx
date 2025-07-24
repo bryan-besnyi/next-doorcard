@@ -33,29 +33,7 @@ const COLLEGE_BADGE_NAMES: Record<College, string> = {
   CANADA: "Cañada",
 };
 
-interface PublicDoorcard {
-  id: string;
-  name: string;
-  doorcardName: string;
-  officeNumber: string;
-  term: string;
-  year: string;
-  college?: College;
-  slug?: string;
-  user: {
-    name: string;
-    username?: string;
-    college?: College;
-  };
-  appointmentCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface DoorcardResponse {
-  doorcards: PublicDoorcard[];
-  count: number;
-}
+import type { PublicDoorcard, DoorcardResponse } from "@/types/pages/public";
 
 export default function Home() {
   const router = useRouter();
@@ -224,7 +202,10 @@ export default function Home() {
                         </div>
                         {doorcard.college && (
                           <Badge variant="outline">
-                            {COLLEGE_BADGE_NAMES[doorcard.college] ||
+                            {(doorcard.college &&
+                              COLLEGE_BADGE_NAMES[
+                                doorcard.college as College
+                              ]) ||
                               doorcard.college}
                           </Badge>
                         )}

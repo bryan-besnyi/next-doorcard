@@ -19,7 +19,8 @@
     "cypress:run": "cypress run",
     "cypress:run:headless": "cypress run --headless",
     "test:e2e": "start-server-and-test dev http://localhost:3000 cypress:run",
-    "test:e2e:open": "start-server-and-test dev http://localhost:3000 cypress:open"
+    "test:e2e:open": "start-server-and-test dev http://localhost:3000 cypress:open",
+    "migrate-types": "node scripts/migrate-types.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

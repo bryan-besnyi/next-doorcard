@@ -33,69 +33,12 @@ import { useToast } from "@/hooks/use-toast";
 import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { COLLEGES } from "@/types/doorcard";
-
-interface Doorcard {
-  id: string;
-  name: string;
-  doorcardName: string;
-  officeNumber: string;
-  term: string;
-  year: string;
-  college?: string;
-  slug?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  user?: {
-    name?: string;
-    username?: string;
-    email?: string;
-    college?: string;
-  };
-  timeBlocks?: Array<{
-    id: string;
-    day: string;
-    startTime: string;
-    endTime: string;
-    activity: string;
-  }>;
-  appointments?: Array<{
-    id: string;
-    day: string;
-    startTime: string;
-    endTime: string;
-    activity: string;
-  }>;
-}
-
-interface DraftDoorcard {
-  id: string;
-  name: string;
-  lastUpdated: string;
-  completionPercentage: number;
-}
-
-interface CompletionData {
-  name?: string;
-  doorcardName?: string;
-  officeNumber?: string;
-  term?: string;
-  year?: string;
-  timeBlocks?: {
-    day: string;
-    startTime: string;
-    endTime: string;
-    activity: string;
-  }[];
-  hasViewedPreview?: boolean;
-  hasViewedPrint?: boolean;
-  [key: string]: unknown;
-}
-
-interface LoadingState {
-  doorcards: boolean;
-  drafts: boolean;
-}
+import type {
+  Doorcard,
+  DraftDoorcard,
+  CompletionData,
+  LoadingState,
+} from "@/types/pages/dashboard";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
