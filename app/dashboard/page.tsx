@@ -34,7 +34,7 @@ import { DashboardSkeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { COLLEGES } from "@/types/doorcard";
 import type {
-  Doorcard,
+  DashboardDoorcard as Doorcard,
   DraftDoorcard,
   CompletionData,
   LoadingState,
@@ -329,7 +329,8 @@ export default function DashboardPage() {
   };
 
   const handlePrint = (doorcard: Doorcard) => {
-    router.push(`/create-doorcard/print?id=${doorcard.id}&print=true`);
+    // For now, redirect to edit page - print functionality can be added there
+    router.push(`/doorcard/${doorcard.id}/edit?step=3`);
   };
 
   // Show loading skeleton while session is loading
@@ -484,7 +485,7 @@ export default function DashboardPage() {
                           isSelected={false}
                           onSelect={() => {}}
                           onEdit={(id) =>
-                            router.push(`/create-doorcard?id=${id}`)
+                            router.push(`/doorcard/${id}/edit?step=1`)
                           }
                           onPrint={handlePrint}
                         />
@@ -531,21 +532,24 @@ export default function DashboardPage() {
                   </select>
                 </div>
 
-                {filteredDoorcards.filter((d) => !d.isActive).length === 0 ? (
-                  <div className="text-center py-12">
-                    <Archive className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No archived doorcards
-                    </h3>
-                    <p className="text-gray-500">
-                      Your past doorcards will appear here.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredDoorcards
-                      .filter((d) => !d.isActive)
-                      .map((doorcard) => (
+                {(() => {
+                  const archivedDoorcards = filteredDoorcards.filter(
+                    (d) => !d.isActive
+                  );
+                  console.log("ARCHIVED DOORCARDS:", archivedDoorcards);
+                  return archivedDoorcards.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Archive className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No archived doorcards
+                      </h3>
+                      <p className="text-gray-500">
+                        Your past doorcards will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {archivedDoorcards.map((doorcard) => (
                         <DoorcardItem
                           key={doorcard.id}
                           doorcard={doorcard}
@@ -553,13 +557,14 @@ export default function DashboardPage() {
                           isSelected={false}
                           onSelect={() => {}}
                           onEdit={(id) =>
-                            router.push(`/create-doorcard?id=${id}`)
+                            router.push(`/doorcard/${id}/edit?step=1`)
                           }
                           onPrint={handlePrint}
                         />
                       ))}
-                  </div>
-                )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

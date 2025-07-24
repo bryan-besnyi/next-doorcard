@@ -1,6 +1,6 @@
 // View Page Types
 
-export interface Doorcard {
+export interface ViewPageDoorcard {
   id: string;
   name: string;
   doorcardName: string;
@@ -30,4 +30,4 @@ export interface Doorcard {
     category: string;
     location?: string;
   }>;
-} 
+}

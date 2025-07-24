@@ -13,13 +13,12 @@ export * from "./pages/public";
 export * from "./pages/admin";
 export * from "./pages/view";
 
-// Store types
-export * from "./store/doorcard";
+// Store types (removed - no longer using Zustand store)
 
 // API types
 export * from "./api/utils";
-export * from "./api/validation";
-export * from "./api/responses";
+// export * from "./api/validation"; // Commented out due to conflicts with main doorcard types
+// export * from "./api/responses"; // File doesn't exist
 
 // Hook types
 export * from "./hooks/toast";
@@ -28,4 +27,4 @@ export * from "./hooks/toast";
 export * from "./analytics/tracking";
 
 // Term types
-export * from "./terms/management"; 
+export * from "./terms/management";

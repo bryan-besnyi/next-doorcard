@@ -40,7 +40,7 @@ export const config = {
     // - public files (favicon, etc)
     // - login and register pages
     // - view routes (public doorcard pages)
-    "/((?!api|_next/static|_next/image|favicon.ico|login|register|view).*)",
-    "/", // Add home page to matcher
+    "/((?!api|_next/static|_next/image|favicon.ico|login|register|view|.*\\.svg$|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.webp$|.*\\.ico$|.*\\.css$|.*\\.js$|.*\\.txt$|.*\\.xml$|.*\\.json$).*)",
+    "/",
   ],
 };

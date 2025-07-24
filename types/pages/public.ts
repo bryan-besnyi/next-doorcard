@@ -19,7 +19,7 @@ export interface PublicDoorcard {
   updatedAt: string;
 }
 
-export interface DoorcardResponse {
+export interface PublicDoorcardResponse {
   doorcards: PublicDoorcard[];
   success: boolean;
   error?: string;

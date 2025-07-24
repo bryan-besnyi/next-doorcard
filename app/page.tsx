@@ -33,7 +33,10 @@ const COLLEGE_BADGE_NAMES: Record<College, string> = {
   CANADA: "Cañada",
 };
 
-import type { PublicDoorcard, DoorcardResponse } from "@/types/pages/public";
+import type {
+  PublicDoorcard,
+  PublicDoorcardResponse as DoorcardResponse,
+} from "@/types/pages/public";
 
 export default function Home() {
   const router = useRouter();

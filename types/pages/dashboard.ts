@@ -1,6 +1,6 @@
 // Dashboard Page Types
 
-export interface Doorcard {
+export interface DashboardDoorcard {
   id: string;
   name: string;
   doorcardName: string;

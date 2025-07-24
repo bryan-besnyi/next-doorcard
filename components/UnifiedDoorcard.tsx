@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useDoorcardStore } from "@/store/use-doorcard-store";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+// Note: This component now operates independently of the store
 import {
   DAYS_FULL,
   DAYS_WEEKDAYS,
@@ -32,6 +35,7 @@ import {
   Building,
   Share2,
   Printer,
+  FileDown,
 } from "lucide-react";
 
 // Unified interfaces
@@ -77,26 +81,25 @@ export default function UnifiedDoorcard({
   onBack: _onBack,
   onPrint,
 }: UnifiedDoorcardProps) {
+  console.log("UnifiedDoorcard received props:", {
+    mode,
+    data: propData,
+    showControls,
+    showWeekendDays,
+  });
+
   const [htmlContent, setHtmlContent] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const printRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Get data from store if in preview mode
-  const storeData = useDoorcardStore();
-
+  // Parse data if it's a string, otherwise use as is
   const rawData =
-    propData ||
-    (mode === "preview"
-      ? {
-          name: storeData.name,
-          doorcardName: storeData.doorcardName,
-          officeNumber: storeData.officeNumber,
-          timeBlocks: storeData.timeBlocks,
-        }
-      : null);
+    typeof propData === "string" ? JSON.parse(propData) : propData;
 
   if (!rawData) {
+    console.log("UnifiedDoorcard: No data provided");
     return <div className="text-red-500">No doorcard data available</div>;
   }
 
@@ -104,36 +107,78 @@ export default function UnifiedDoorcard({
   const convertAppointmentsToTimeBlocks = (
     appointments: Appointment[]
   ): TimeBlock[] => {
-    const dayMap: { [key: string]: string } = {
-      MONDAY: "Monday",
-      TUESDAY: "Tuesday",
-      WEDNESDAY: "Wednesday",
-      THURSDAY: "Thursday",
-      FRIDAY: "Friday",
-      SATURDAY: "Saturday",
-      SUNDAY: "Sunday",
-    };
-
-    return appointments.map((apt) => ({
+    console.log("Converting appointments:", appointments);
+    const blocks = appointments.map((apt) => ({
       id: apt.id,
-      day: dayMap[apt.dayOfWeek] || apt.dayOfWeek,
+      day: apt.dayOfWeek as
+        | "MONDAY"
+        | "TUESDAY"
+        | "WEDNESDAY"
+        | "THURSDAY"
+        | "FRIDAY"
+        | "SATURDAY"
+        | "SUNDAY",
       startTime: apt.startTime,
       endTime: apt.endTime,
       activity: apt.name,
-      location: apt.location,
-      category: apt.category,
+      location: apt.location || undefined,
+      category: apt.category as
+        | "OFFICE_HOURS"
+        | "IN_CLASS"
+        | "LECTURE"
+        | "LAB"
+        | "HOURS_BY_ARRANGEMENT"
+        | "REFERENCE",
     }));
+    console.log("Converted blocks:", blocks);
+    return blocks;
   };
 
+  // Use either appointments or timeBlocks, but not both
   const timeBlocks = (
-    "appointments" in rawData && rawData.appointments
+    "appointments" in rawData && Array.isArray(rawData.appointments)
       ? convertAppointmentsToTimeBlocks(rawData.appointments)
-      : rawData.timeBlocks || []
+      : Array.isArray(rawData.timeBlocks)
+      ? rawData.timeBlocks
+      : []
   ) as TimeBlock[];
+
+  console.log("Final timeBlocks for rendering:", timeBlocks);
 
   const data: DoorcardData = {
     ...rawData,
     timeBlocks,
+  };
+
+  // Debug log for time slots
+  console.log("TIME_SLOTS:", TIME_SLOTS);
+
+  // Helper for time comparison
+  const formatTimeForComparison = (time: string) => {
+    // Ensure time is in HH:mm format
+    const [hours, minutes] = time.split(":");
+    // Convert hours to 24-hour format if needed
+    let hour = parseInt(hours);
+    if (time.toLowerCase().includes("pm") && hour < 12) {
+      hour += 12;
+    } else if (time.toLowerCase().includes("am") && hour === 12) {
+      hour = 0;
+    }
+    const formattedHours = hour.toString().padStart(2, "0");
+    const formattedMinutes = minutes
+      ? minutes.split(" ")[0].padStart(2, "0")
+      : "00";
+    return `${formattedHours}:${formattedMinutes}`;
+  };
+
+  // Helper for time slot comparison
+  const isTimeSlotMatch = (blockTime: string, slotTime: string) => {
+    const formattedBlockTime = formatTimeForComparison(blockTime);
+    const formattedSlotTime = slotTime; // TIME_SLOTS are already in 24-hour format
+    console.log(
+      `Comparing times - Block: ${formattedBlockTime}, Slot: ${formattedSlotTime}`
+    );
+    return formattedBlockTime === formattedSlotTime;
   };
 
   // Standardize on showing all 7 days for consistency, but allow override
@@ -220,13 +265,15 @@ export default function UnifiedDoorcard({
 
   // Time utilities
   const isTimeBlockAtSlot = (block: TimeBlock, slotTime: string) => {
-    return getTimeInMinutes(block.startTime) === getTimeInMinutes(slotTime);
+    return isTimeSlotMatch(block.startTime, slotTime);
   };
 
   const isTimeInBlock = (block: TimeBlock, slotTime: string) => {
-    const blockStart = getTimeInMinutes(block.startTime);
-    const blockEnd = getTimeInMinutes(block.endTime);
-    const slotTimeMinutes = getTimeInMinutes(slotTime);
+    const blockStart = getTimeInMinutes(
+      formatTimeForComparison(block.startTime)
+    );
+    const blockEnd = getTimeInMinutes(formatTimeForComparison(block.endTime));
+    const slotTimeMinutes = getTimeInMinutes(slotTime); // TIME_SLOTS are already in 24-hour format
     return slotTimeMinutes >= blockStart && slotTimeMinutes < blockEnd;
   };
 
@@ -294,163 +341,43 @@ export default function UnifiedDoorcard({
       </div>
     );
 
+    // Add debug logging for time slots
+    console.log("TIME_SLOTS:", TIME_SLOTS);
+    console.log("Available time blocks:", timeBlocks);
+
     return (
       <div ref={printRef} className="w-full">
-        {/* Print-specific styles to fit on one page */}
-        <style jsx global>{`
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 0.5in;
-            }
-            html,
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              width: 100vw;
-              height: 100vh;
-              background: white !important;
-            }
-            body * {
-              box-shadow: none !important;
-            }
-            .print-area,
-            .print-area * {
-              visibility: visible !important;
-            }
-            .print-area {
-              position: static !important;
-              width: 100vw !important;
-              max-width: 7.25in !important;
-              margin: 0 auto !important;
-              padding: 0 !important;
-              page-break-inside: avoid !important;
-              margin-top: 0 !important;
-              font-size: 10px !important;
-            }
-            .print-area table {
-              table-layout: fixed !important;
-              width: 100% !important;
-              max-width: 7.25in !important;
-            }
-            .print-area th,
-            .print-area td {
-              padding: 2px 3px !important;
-              font-size: 10px !important;
-              word-break: break-word !important;
-              overflow: hidden !important;
-              text-overflow: ellipsis !important;
-            }
-            /* Add a gap between table and legend to avoid border artifact */
-            .print-area .print-legend-box {
-              margin-top: 16px !important;
-              border: 1.2px solid #64748b !important;
-              background: #fff !important;
-              padding: 8px 12px !important;
-              box-shadow: none !important;
-            }
-            .print-area .print-legend-box,
-            .print-area table {
-              border-radius: 0 !important;
-            }
-            /* Hide dev/test indicators and floating buttons in print */
-            .no-print,
-            .no-print *,
-            .dev-indicator,
-            .dev-indicator *,
-            .nextjs-portal,
-            .nextjs-portal *,
-            #__next-route-announcer,
-            #__next-route-announcer * {
-              display: none !important;
-              visibility: hidden !important;
-            }
-            .print-area .mb-2,
-            .print-area .mb-4,
-            .print-area .mt-2,
-            .print-area .mt-4,
-            .print-area .pt-4,
-            .print-area .pb-4 {
-              margin-top: 0 !important;
-              margin-bottom: 0 !important;
-              padding-top: 0 !important;
-              padding-bottom: 0 !important;
-            }
-            .print-area .border,
-            .print-area .border-gray-700,
-            .print-area .border-gray-400,
-            .print-area .border-gray-500 {
-              border-width: 1.2px !important;
-            }
-            .print-area .rounded-lg,
-            .print-area .rounded,
-            .print-area .rounded-sm {
-              border-radius: 0 !important;
-            }
-            .print-area .p-2,
-            .print-area .p-3,
-            .print-area .p-4 {
-              padding: 2px !important;
-            }
-            .print-area .text-2xl,
-            .print-area .text-xl,
-            .print-area .text-lg {
-              font-size: 1.1em !important;
-            }
-            .print-area .text-sm,
-            .print-area .text-xs {
-              font-size: 0.9em !important;
-            }
-            .print-area .w-5,
-            .print-area .h-5 {
-              width: 12px !important;
-              height: 12px !important;
-            }
-            .print-area .max-w-2xl {
-              max-width: 100vw !important;
-            }
-            /* Hide UI-only elements (e.g., print/share buttons) */
-            .no-print,
-            .no-print * {
-              display: none !important;
-            }
-          }
-        `}</style>
-        <div className="print-area">
-          {!(mode === "public" && !showControls) && contactSection}
-          {/* Removed repeated doorcard title above the table */}
-          {/* <h2 className="text-xl font-bold mb-1 text-center">
-            {data.doorcardName}
-          </h2>
-          <p className="text-sm text-gray-600 mb-6 text-center">
-            {data.name} - Office #{data.officeNumber}
-          </p> */}
-          <div className="w-full border border-gray-700 rounded-lg overflow-hidden mt-2">
-            <table
-              className="w-full border-collapse"
-              style={{ border: "1.5px solid #374151" }}
-            >
-              <thead>
-                <tr>
+        {/* Always show contact section in preview mode */}
+        {(mode === "preview" || !(mode === "public" && !showControls)) &&
+          contactSection}
+        <div className="w-full border border-gray-700 rounded-lg overflow-hidden mt-2">
+          <table
+            className="w-full border-collapse"
+            style={{ border: "1.5px solid #374151" }}
+          >
+            <thead>
+              <tr>
+                <th
+                  className="p-2 border-b border-r border-gray-700 bg-white"
+                  style={{ border: "1.5px solid #374151" }}
+                >
+                  <span className="sr-only">Time</span>
+                </th>
+                {days.map((day) => (
                   <th
-                    className="p-2 border-b border-r border-gray-700 bg-white"
+                    key={day}
+                    className="p-2 text-center border-b border-r last:border-r-0 border-gray-700 font-medium text-sm bg-white"
                     style={{ border: "1.5px solid #374151" }}
                   >
-                    <span className="sr-only">Time</span>
+                    {day}
                   </th>
-                  {days.map((day) => (
-                    <th
-                      key={day}
-                      className="p-2 text-center border-b border-r last:border-r-0 border-gray-700 font-medium text-sm bg-white"
-                      style={{ border: "1.5px solid #374151" }}
-                    >
-                      {day}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {TIME_SLOTS.map((slot) => (
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {TIME_SLOTS.map((slot) => {
+                console.log(`Processing slot: ${slot.value}`);
+                return (
                   <tr key={slot.value}>
                     <td
                       className="p-2 text-xs text-gray-600 border-r border-b border-gray-700 bg-white"
@@ -460,18 +387,26 @@ export default function UnifiedDoorcard({
                     </td>
                     {days.map((day) => {
                       const dayBlocks = timeBlocks.filter(
-                        (block) => block.day === day
+                        (block) => block.day === day.toUpperCase()
                       );
-                      const activeBlock = dayBlocks.find(
-                        (block) =>
-                          getTimeInMinutes(block.startTime) ===
-                          getTimeInMinutes(slot.value)
+                      console.log(`Day ${day} blocks:`, dayBlocks);
+
+                      const activeBlock = dayBlocks.find((block) =>
+                        isTimeBlockAtSlot(block, slot.value)
                       );
 
                       if (activeBlock) {
+                        console.log(
+                          `Found active block for ${day} at ${slot.value}:`,
+                          activeBlock
+                        );
                         const duration = Math.ceil(
-                          (getTimeInMinutes(activeBlock.endTime) -
-                            getTimeInMinutes(activeBlock.startTime)) /
+                          (getTimeInMinutes(
+                            formatTimeForComparison(activeBlock.endTime)
+                          ) -
+                            getTimeInMinutes(
+                              formatTimeForComparison(activeBlock.startTime)
+                            )) /
                             30
                         );
                         const cellStyle = activeBlock.category
@@ -512,12 +447,8 @@ export default function UnifiedDoorcard({
                       }
 
                       // If this slot is within an existing block, skip cell (rowspan will cover it)
-                      const isInExistingBlock = dayBlocks.some(
-                        (block) =>
-                          getTimeInMinutes(block.startTime) <
-                            getTimeInMinutes(slot.value) &&
-                          getTimeInMinutes(block.endTime) >
-                            getTimeInMinutes(slot.value)
+                      const isInExistingBlock = dayBlocks.some((block) =>
+                        isTimeInBlock(block, slot.value)
                       );
                       if (!isInExistingBlock) {
                         return (
@@ -531,11 +462,194 @@ export default function UnifiedDoorcard({
                       return null;
                     })}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {legendSection}
+      </div>
+    );
+  };
+
+  // Print-specific styles
+  const printStyles = `
+    @media print {
+      @page {
+        size: letter portrait;
+        margin: 0.5in;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .print-container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      .print-header {
+        margin-bottom: 1rem;
+      }
+
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: avoid;
+      }
+
+      .print-table th,
+      .print-table td {
+        border: 1px solid #374151;
+        padding: 0.25rem;
+      }
+
+      .print-legend {
+        margin-top: 1rem;
+        page-break-inside: avoid;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+  `;
+
+  // Render print layout
+  const renderPrintLayout = () => {
+    return (
+      <div className="print-container">
+        <style>{printStyles}</style>
+        <div className="print-header">
+          <div className="text-2xl font-bold text-red-700 mb-2">
+            {data.name}
           </div>
-          {legendSection}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div>
+                <strong>Semester:</strong> {data.term} {data.year}
+              </div>
+              <div>
+                <strong>Office:</strong> {data.officeNumber}
+              </div>
+              <div>
+                <strong>Phone:</strong> (650) 358-6794
+              </div>
+            </div>
+            <div className="text-right">
+              <div>
+                <strong>Division:</strong> District Office
+              </div>
+              <div>
+                <strong>Email:</strong> besnyib@smccd.edu
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <table className="print-table">
+          <thead>
+            <tr>
+              <th className="w-20" aria-label="Time">
+                Time
+              </th>
+              {days.map((day) => (
+                <th key={day} className="text-center font-medium py-2">
+                  {day}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TIME_SLOTS.map((slot) => (
+              <tr key={slot.value}>
+                <td className="text-xs text-center py-2">{slot.label}</td>
+                {days.map((day) => {
+                  const dayBlocks = timeBlocks.filter(
+                    (block) => block.day === day.toUpperCase()
+                  );
+                  const activeBlock = dayBlocks.find((block) =>
+                    isTimeBlockAtSlot(block, slot.value)
+                  );
+
+                  if (activeBlock) {
+                    const duration = Math.ceil(
+                      (getTimeInMinutes(
+                        formatTimeForComparison(activeBlock.endTime)
+                      ) -
+                        getTimeInMinutes(
+                          formatTimeForComparison(activeBlock.startTime)
+                        )) /
+                        30
+                    );
+                    const cellStyle = activeBlock.category
+                      ? {
+                          backgroundColor:
+                            CATEGORY_COLORS[
+                              activeBlock.category as keyof typeof CATEGORY_COLORS
+                            ],
+                        }
+                      : {};
+                    return (
+                      <td
+                        key={`${day}-${slot.value}`}
+                        rowSpan={duration}
+                        className="text-center align-middle"
+                        style={cellStyle}
+                      >
+                        <div className="font-bold text-sm">
+                          {extractCourseCode(activeBlock.activity)}
+                        </div>
+                        <div className="text-xs">
+                          {formatTimeRange(
+                            activeBlock.startTime,
+                            activeBlock.endTime
+                          )}
+                        </div>
+                        {activeBlock.location && (
+                          <div className="text-xs text-gray-600">
+                            {activeBlock.location}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  }
+
+                  const isInExistingBlock = dayBlocks.some((block) =>
+                    isTimeInBlock(block, slot.value)
+                  );
+                  if (!isInExistingBlock) {
+                    return <td key={`${day}-${slot.value}`}></td>;
+                  }
+                  return null;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="print-legend">
+          <div className="font-bold mb-2">Legend</div>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <div key={key} className="flex items-center gap-2">
+                <span
+                  className="inline-block w-4 h-4"
+                  style={{
+                    backgroundColor:
+                      CATEGORY_COLORS[key as keyof typeof CATEGORY_COLORS],
+                  }}
+                ></span>
+                <span className="text-xs">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -543,33 +657,222 @@ export default function UnifiedDoorcard({
 
   // Different renders based on mode
   if (mode === "print") {
-    return (
-      <>
-        <style jsx global>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .print-container,
-            .print-container * {
-              visibility: visible;
-            }
-            .print-container {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-          }
-        `}</style>
-        <div className="print-container">{renderScheduleGrid()}</div>
-      </>
-    );
+    return renderPrintLayout();
   }
 
   if (mode === "preview") {
+    const generatePDF = async () => {
+      if (!pdfRef.current) return;
+
+      // Create a clean version of the schedule for PDF
+      const pdfContent = pdfRef.current.cloneNode(true) as HTMLElement;
+      pdfContent.style.width = "1100px"; // Fixed width for better quality
+      pdfContent.style.padding = "40px";
+      document.body.appendChild(pdfContent);
+
+      try {
+        const canvas = await html2canvas(pdfContent, {
+          scale: 2, // Higher resolution
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+        });
+
+        document.body.removeChild(pdfContent);
+
+        const imgWidth = 210; // A4 width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        const pdf = new jsPDF({
+          orientation: imgHeight > imgWidth ? "portrait" : "landscape",
+          unit: "mm",
+        });
+
+        pdf.addImage(
+          canvas.toDataURL("image/png"),
+          "PNG",
+          0,
+          0,
+          imgWidth,
+          imgHeight
+        );
+
+        pdf.save(`${data.name}-schedule.pdf`);
+      } catch (error) {
+        console.error("Error generating PDF:", error);
+        toast({
+          title: "Error",
+          description: "Failed to generate PDF. Please try again.",
+          variant: "destructive",
+        });
+      }
+    };
+
     return (
-      <div className="bg-white rounded-lg p-6">{renderScheduleGrid()}</div>
+      <div className="bg-white rounded-lg p-6">
+        <div ref={pdfRef}>
+          {/* PDF-optimized layout */}
+          <div className="pdf-content p-8 bg-white">
+            <div className="mb-6 border-b pb-4">
+              <h1 className="text-2xl font-bold text-red-700 mb-2">
+                {data.name}
+              </h1>
+              <div className="grid grid-cols-2 gap-x-8 text-sm">
+                <div className="space-y-1">
+                  <div>
+                    <span className="font-semibold">Semester:</span> {data.term}{" "}
+                    {data.year}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Office:</span>{" "}
+                    {data.officeNumber}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Phone:</span> (650) 358-6794
+                  </div>
+                </div>
+                <div className="space-y-1 text-right">
+                  <div>
+                    <span className="font-semibold">Division:</span> District
+                    Office
+                  </div>
+                  <div>
+                    <span className="font-semibold">Email:</span>{" "}
+                    besnyib@smccd.edu
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <table className="w-full border-collapse bg-white">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="w-20 p-2 text-left text-sm font-semibold text-gray-900">
+                      Time
+                    </th>
+                    {days.map((day) => (
+                      <th
+                        key={day}
+                        className="p-2 text-center text-sm font-semibold text-gray-900"
+                      >
+                        {day}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {TIME_SLOTS.map((slot) => (
+                    <tr key={slot.value} className="border-b border-gray-200">
+                      <td className="p-2 text-sm text-gray-500 text-center">
+                        {slot.label}
+                      </td>
+                      {days.map((day) => {
+                        const dayBlocks = timeBlocks.filter(
+                          (block) => block.day === day.toUpperCase()
+                        );
+                        const activeBlock = dayBlocks.find((block) =>
+                          isTimeBlockAtSlot(block, slot.value)
+                        );
+
+                        if (activeBlock) {
+                          const duration = Math.ceil(
+                            (getTimeInMinutes(
+                              formatTimeForComparison(activeBlock.endTime)
+                            ) -
+                              getTimeInMinutes(
+                                formatTimeForComparison(activeBlock.startTime)
+                              )) /
+                              30
+                          );
+                          return (
+                            <td
+                              key={`${day}-${slot.value}`}
+                              rowSpan={duration}
+                              className="p-2 text-center"
+                              style={{
+                                backgroundColor:
+                                  CATEGORY_COLORS[
+                                    activeBlock.category as keyof typeof CATEGORY_COLORS
+                                  ],
+                              }}
+                            >
+                              <div className="font-medium text-sm">
+                                {extractCourseCode(activeBlock.activity)}
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                {formatTimeRange(
+                                  activeBlock.startTime,
+                                  activeBlock.endTime
+                                )}
+                              </div>
+                              {activeBlock.location && (
+                                <div className="text-xs text-gray-500">
+                                  {activeBlock.location}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+
+                        const isInExistingBlock = dayBlocks.some((block) =>
+                          isTimeInBlock(block, slot.value)
+                        );
+                        if (!isInExistingBlock) {
+                          return (
+                            <td
+                              key={`${day}-${slot.value}`}
+                              className="border-r border-gray-200"
+                            />
+                          );
+                        }
+                        return null;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 border-t pt-4">
+              <h2 className="text-sm font-semibold mb-2">Legend</h2>
+              <div className="grid grid-cols-3 gap-3">
+                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span
+                      className="h-4 w-4 rounded"
+                      style={{
+                        backgroundColor:
+                          CATEGORY_COLORS[key as keyof typeof CATEGORY_COLORS],
+                      }}
+                    />
+                    <span className="text-sm text-gray-600">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            onClick={() => window.print()}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </Button>
+          <Button
+            onClick={generatePDF}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+          >
+            <FileDown className="h-4 w-4" />
+            Download PDF
+          </Button>
+        </div>
+      </div>
     );
   }
 

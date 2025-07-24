@@ -15,7 +15,7 @@ export interface Term {
   updatedAt: string;
 }
 
-export interface Doorcard {
+export interface AdminDoorcard {
   id: string;
   name: string;
   doorcardName: string;

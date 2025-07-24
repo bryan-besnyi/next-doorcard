@@ -1,4 +1,5 @@
 // Form Component Types
+import type { Appointment, Doorcard, TimeBlock } from "../doorcard";
 
 // Basic Info Form
 export interface BasicInfoFormProps {
@@ -6,7 +7,7 @@ export interface BasicInfoFormProps {
 }
 
 // Campus Term Selector
-export interface Term {
+export interface FormTerm {
   id: string;
   name: string;
   year: string;
@@ -19,7 +20,7 @@ export interface Term {
 }
 
 // Resume Doorcard
-export interface DraftDoorcard {
+export interface ResumeDoorcard {
   id: string;
   name: string;
   lastUpdated: string;
@@ -27,39 +28,14 @@ export interface DraftDoorcard {
 }
 
 export interface ResumeDoorCardProps {
-  draft: DraftDoorcard;
+  draft: ResumeDoorcard;
   onDelete: (id: string) => void;
   isDeleting?: boolean;
 }
 
 // Print Page Types
-export interface Appointment {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  dayOfWeek: string;
-  category: string;
-  location?: string;
-}
+// Note: Using Appointment from types/doorcard.ts
 
-export interface TimeBlock {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  activity: string;
-  location?: string;
-  category?: string;
-}
+// Note: Using TimeBlock from types/doorcard.ts
 
-export interface Doorcard {
-  id: string;
-  name: string;
-  doorcardName: string;
-  officeNumber: string;
-  term: string;
-  year: string;
-  college?: string;
-  appointments: Appointment[];
-}
+// Note: Using Doorcard from types/doorcard.ts

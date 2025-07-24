@@ -1,27 +1,12 @@
 // Layout Component Types
+import type { Appointment, TimeBlock } from "../doorcard";
 
 // Unified Doorcard Types
-export interface TimeBlock {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  activity: string;
-  location?: string;
-  category?: string;
-}
+// Note: Using TimeBlock from types/doorcard.ts
 
-export interface Appointment {
-  id: string;
-  name: string;
-  startTime: string;
-  endTime: string;
-  dayOfWeek: string;
-  category: string;
-  location?: string;
-}
+// Note: Using Appointment from types/doorcard.ts
 
-export interface DoorcardData {
+export interface LayoutDoorcardData {
   name: string;
   doorcardName: string;
   officeNumber: string;
@@ -34,9 +19,9 @@ export interface DoorcardData {
 
 export interface UnifiedDoorcardProps {
   mode: "preview" | "print" | "view";
-  data?: DoorcardData;
+  data?: LayoutDoorcardData;
   showControls?: boolean;
   showWeekendDays?: boolean;
   onBack?: () => void;
   onPrint?: () => void;
-} 
+}
