@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,12 @@ interface BasicInfoFormProps {
   };
 }
 
+interface FieldErrors {
+  name?: string;
+  doorcardName?: string;
+  officeNumber?: string;
+}
+
 function SubmitButton() {
   const { pending } = useFormStatus();
 
@@ -37,24 +43,121 @@ function SubmitButton() {
 }
 
 export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [isSuccess, setIsSuccess] = useState(false);
+  // Form state
+  const [name, setName] = useState(doorcard.name || "");
+  const [doorcardName, setDoorcardName] = useState(doorcard.doorcardName || "");
+  const [officeNumber, setOfficeNumber] = useState(doorcard.officeNumber || "");
 
-  const handleSubmit = async (formData: FormData) => {
-    try {
-      setError(null);
-      setIsSuccess(false);
+  // Validation state
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-      // First set success state (will show briefly before redirect)
-      setIsSuccess(true);
+  // Server action state
+  const [state, formAction] = useActionState(
+    updateBasicInfo.bind(null, doorcard.id),
+    {
+      success: true,
+    }
+  );
 
-      // Then submit the form (which will redirect on success)
-      await updateBasicInfo(doorcard.id, formData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      setIsSuccess(false);
+  // Client-side validation function
+  const validateField = (
+    fieldName: keyof FieldErrors,
+    value: string
+  ): string | undefined => {
+    switch (fieldName) {
+      case "name":
+        if (!value.trim()) return "Full name is required";
+        if (value.trim().length < 2)
+          return "Full name must be at least 2 characters";
+        if (value.trim().length > 100)
+          return "Full name must be less than 100 characters";
+        return undefined;
+      case "doorcardName":
+        if (!value.trim()) return "Doorcard name is required";
+        if (value.trim().length < 2)
+          return "Doorcard name must be at least 2 characters";
+        if (value.trim().length > 50)
+          return "Doorcard name must be less than 50 characters";
+        return undefined;
+      case "officeNumber":
+        if (!value.trim()) return "Office location is required";
+        if (value.trim().length < 2)
+          return "Office location must be at least 2 characters";
+        if (value.trim().length > 100)
+          return "Office location must be less than 100 characters";
+        return undefined;
+      default:
+        return undefined;
     }
   };
+
+  // Validate all fields
+  const validateAllFields = (): FieldErrors => {
+    return {
+      name: validateField("name", name),
+      doorcardName: validateField("doorcardName", doorcardName),
+      officeNumber: validateField("officeNumber", officeNumber),
+    };
+  };
+
+  // Real-time validation on field change
+  const handleFieldChange = (fieldName: keyof FieldErrors, value: string) => {
+    // Update field value
+    switch (fieldName) {
+      case "name":
+        setName(value);
+        break;
+      case "doorcardName":
+        setDoorcardName(value);
+        break;
+      case "officeNumber":
+        setOfficeNumber(value);
+        break;
+    }
+
+    // Clear field error if now valid, or show error if attempted submit
+    if (hasAttemptedSubmit || fieldErrors[fieldName]) {
+      const error = validateField(fieldName, value);
+      setFieldErrors((prev) => ({
+        ...prev,
+        [fieldName]: error,
+      }));
+    }
+  };
+
+  // Form submission with comprehensive validation
+  const handleSubmit = (formData: FormData) => {
+    setHasAttemptedSubmit(true);
+
+    // Run client-side validation
+    const errors = validateAllFields();
+    const hasErrors = Object.values(errors).some((error) => error);
+
+    if (hasErrors) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    // Clear field errors
+    setFieldErrors({});
+
+    // Set the values in FormData to ensure they're sent with trimmed values
+    formData.set("name", name.trim());
+    formData.set("doorcardName", doorcardName.trim());
+    formData.set("officeNumber", officeNumber.trim());
+
+    // Call the server action
+    formAction(formData);
+  };
+
+  // Check if form is valid
+  const isFormValid =
+    name.trim() &&
+    doorcardName.trim() &&
+    officeNumber.trim() &&
+    Object.values(fieldErrors).every((error) => !error);
+  const hasAnyFieldErrors = Object.values(fieldErrors).some((error) => error);
 
   return (
     <div className="space-y-8">
@@ -85,30 +188,8 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
         </div>
       )}
 
-      {/* Success Message */}
-      {isSuccess && (
-        <div className="rounded-lg bg-green-50 border border-green-100 px-4 py-3">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <CheckCircle2
-                className="h-5 w-5 text-green-400"
-                aria-hidden="true"
-              />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">
-                Information Saved
-              </h3>
-              <div className="mt-2 text-sm text-green-700">
-                <p>Redirecting to schedule setup...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Error Display */}
-      {error && (
+      {/* Overall Error Display (Server errors) */}
+      {state && !state.success && state.message && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -122,7 +203,37 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
                 Cannot Save Information
               </h3>
               <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
+                <p>{state.message}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client-side validation summary */}
+      {hasAttemptedSubmit && hasAnyFieldErrors && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle
+                className="h-5 w-5 text-red-400"
+                aria-hidden="true"
+              />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Please correct the following errors:
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <ul className="list-disc list-inside space-y-1">
+                  {fieldErrors.name && <li>{fieldErrors.name}</li>}
+                  {fieldErrors.doorcardName && (
+                    <li>{fieldErrors.doorcardName}</li>
+                  )}
+                  {fieldErrors.officeNumber && (
+                    <li>{fieldErrors.officeNumber}</li>
+                  )}
+                </ul>
               </div>
             </div>
           </div>
@@ -133,7 +244,7 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1.5">
             <Label htmlFor="name" className="text-sm font-medium text-gray-900">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -142,14 +253,21 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
               <Input
                 id="name"
                 name="name"
-                defaultValue={doorcard.name}
-                required
-                className="pl-10"
+                value={name}
+                onChange={(e) => handleFieldChange("name", e.target.value)}
+                className={`pl-10 ${
+                  fieldErrors.name
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : ""
+                }`}
                 placeholder="Dr. Jane Smith"
               />
             </div>
+            {fieldErrors.name && (
+              <p className="text-sm text-red-600">{fieldErrors.name}</p>
+            )}
             <p className="text-sm text-gray-500">
-              Your full name as you'd like it to appear
+              Your full name as you&apos;d like it to appear
             </p>
           </div>
 
@@ -158,7 +276,7 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
               htmlFor="doorcardName"
               className="text-sm font-medium text-gray-900"
             >
-              Doorcard Name
+              Doorcard Name <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -170,12 +288,21 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
               <Input
                 id="doorcardName"
                 name="doorcardName"
-                defaultValue={doorcard.doorcardName}
-                required
-                className="pl-10"
+                value={doorcardName}
+                onChange={(e) =>
+                  handleFieldChange("doorcardName", e.target.value)
+                }
+                className={`pl-10 ${
+                  fieldErrors.doorcardName
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : ""
+                }`}
                 placeholder="Prof. Smith"
               />
             </div>
+            {fieldErrors.doorcardName && (
+              <p className="text-sm text-red-600">{fieldErrors.doorcardName}</p>
+            )}
             <p className="text-sm text-gray-500">
               How students should address you
             </p>
@@ -186,7 +313,7 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
               htmlFor="officeNumber"
               className="text-sm font-medium text-gray-900"
             >
-              Office Location
+              Office Location <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -198,12 +325,21 @@ export default function BasicInfoForm({ doorcard }: BasicInfoFormProps) {
               <Input
                 id="officeNumber"
                 name="officeNumber"
-                defaultValue={doorcard.officeNumber}
-                required
-                className="pl-10"
+                value={officeNumber}
+                onChange={(e) =>
+                  handleFieldChange("officeNumber", e.target.value)
+                }
+                className={`pl-10 ${
+                  fieldErrors.officeNumber
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : ""
+                }`}
                 placeholder="Building 1, Room 123"
               />
             </div>
+            {fieldErrors.officeNumber && (
+              <p className="text-sm text-red-600">{fieldErrors.officeNumber}</p>
+            )}
             <p className="text-sm text-gray-500">
               Your office location including building and room number
             </p>

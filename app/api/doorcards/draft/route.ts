@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { createDoorcardDraft } from "@/app/doorcard/actions";
 
 import type { DraftData } from "@/types/api/utils";
 
@@ -58,6 +59,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check if this is a request to create a new doorcard (no body)
+    const contentLength = req.headers.get("content-length");
+    if (!contentLength || contentLength === "0") {
+      // Create new doorcard draft
+      const redirectUrl = await createDoorcardDraft();
+      return NextResponse.json({ redirectUrl });
+    }
+
+    // Otherwise, handle the existing draft saving logic
     const data = (await req.json()) as DraftData;
     const draftId = data.draftId;
 

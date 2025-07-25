@@ -439,11 +439,25 @@ export default function DashboardPage() {
               <TabsTrigger value="drafts">Drafts</TabsTrigger>
             </TabsList>
 
-            <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
-              <Link href="/create-doorcard">
-                <Plus className="h-5 w-5 mr-2" />
-                Create New Doorcard
-              </Link>
+            <Button
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={async () => {
+                try {
+                  const response = await fetch("/api/doorcards/draft", {
+                    method: "POST",
+                  });
+                  const data = await response.json();
+                  if (data.redirectUrl) {
+                    router.push(data.redirectUrl);
+                  }
+                } catch (error) {
+                  console.error("Failed to create draft:", error);
+                }
+              }}
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create New Doorcard
             </Button>
           </div>
 
@@ -469,8 +483,22 @@ export default function DashboardPage() {
                     <p className="text-gray-500 mb-6">
                       Create your first doorcard for this term.
                     </p>
-                    <Button asChild>
-                      <Link href="/create-doorcard">Create Doorcard</Link>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch("/api/doorcards/draft", {
+                            method: "POST",
+                          });
+                          const data = await response.json();
+                          if (data.redirectUrl) {
+                            router.push(data.redirectUrl);
+                          }
+                        } catch (error) {
+                          console.error("Failed to create draft:", error);
+                        }
+                      }}
+                    >
+                      Create Doorcard
                     </Button>
                   </div>
                 ) : (
